@@ -1,0 +1,1772 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Planning Hôpital</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : bandeau contrat + onglets ; planning = tableau de bord de garde, codes en pastilles colorées comme sur un tableau de service */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --surface2:#F7F8FA; --ink:#17202B; --muted:#5A6573; --line:#D9DFE6;
+  --accent:#7A2E63; --accent-soft:#F3E6EF; --accent-ink:#FFFFFF;
+  --wish:#E8710A; --wish-soft:#FDE8D6;
+  --ok:#1F7A4D; --warn:#B26B00; --bad:#B42318; --ok-soft:#DFF3E8; --warn-soft:#FCEFD6; --bad-soft:#FBE1DE;
+  --jour:#FDF0CC; --jour-ink:#6B4800; --nuit:#DEE3FA; --nuit-ink:#1F2A6B; --act:#F1E8D4; --act-ink:#5E4613;
+  --repos:#E6E9EE; --repos-ink:#4E5966; --ca:#DAF1E3; --ca-ink:#155C38; --rtt:#D5F0F0; --rtt-ink:#0E5C5C;
+  --fr:#EBE2FA; --fr-ink:#4B2A8A; --rc:#DBEAF8; --rc-ink:#1C4F84; --hs:#F6E2D7; --hs-ink:#7A3712;
+  --mal:#F8DCD8; --mal-ink:#8A1F14; --form:#E4E7F0; --form-ink:#384056; --unk:#FFFFFF;
+  --f-display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151B; --surface:#1A2029; --surface2:#151A22; --ink:#E6EAF0; --muted:#9AA5B3; --line:#2C3541;
+  --accent:#D88EC3; --accent-soft:#3A2333; --accent-ink:#1A0F17;
+  --wish:#FF9A3D; --wish-soft:#4A2A10;
+  --ok:#5BD08F; --warn:#F2B44C; --bad:#FF7A6B; --ok-soft:#163323; --warn-soft:#3A2A10; --bad-soft:#3D1A17;
+  --jour:#3A3018; --jour-ink:#F5D58A; --nuit:#252C55; --nuit-ink:#C2CBFF; --act:#352C19; --act-ink:#E3C98C;
+  --repos:#262D37; --repos-ink:#A3ADBA; --ca:#17362A; --ca-ink:#8FE0B3; --rtt:#123636; --rtt-ink:#8DE3E3;
+  --fr:#2D2347; --fr-ink:#CDB6F5; --rc:#172C42; --rc-ink:#A9CFF3; --hs:#3A261C; --hs-ink:#EDB89C;
+  --mal:#3D1E1B; --mal-ink:#F2A79E; --form:#262A36; --form-ink:#C3C8D8; --unk:#1A2029; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151B; --surface:#1A2029; --surface2:#151A22; --ink:#E6EAF0; --muted:#9AA5B3; --line:#2C3541;
+  --accent:#D88EC3; --accent-soft:#3A2333; --accent-ink:#1A0F17;
+  --wish:#FF9A3D; --wish-soft:#4A2A10;
+  --ok:#5BD08F; --warn:#F2B44C; --bad:#FF7A6B; --ok-soft:#163323; --warn-soft:#3A2A10; --bad-soft:#3D1A17;
+  --jour:#3A3018; --jour-ink:#F5D58A; --nuit:#252C55; --nuit-ink:#C2CBFF; --act:#352C19; --act-ink:#E3C98C;
+  --repos:#262D37; --repos-ink:#A3ADBA; --ca:#17362A; --ca-ink:#8FE0B3; --rtt:#123636; --rtt-ink:#8DE3E3;
+  --fr:#2D2347; --fr-ink:#CDB6F5; --rc:#172C42; --rc-ink:#A9CFF3; --hs:#3A261C; --hs-ink:#EDB89C;
+  --mal:#3D1E1B; --mal-ink:#F2A79E; --form:#262A36; --form-ink:#C3C8D8; --unk:#1A2029; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1440px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h2{font-size:1.25rem}
+h3{font-size:1.02rem}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
+.top .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:10px}
+.brand{display:flex;align-items:baseline;gap:10px;flex:1 1 auto;min-width:0}
+.brand h1{font-size:1.25rem}
+.brand .tag{font-family:var(--f-mono);font-size:.72rem;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:99px;letter-spacing:.04em}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;font-size:.9rem;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:0;margin-top:2px}
+.tab{border:0;background:transparent;padding:10px 14px;border-bottom:3px solid transparent;font-family:var(--f-display);font-weight:600;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .n{font-family:var(--f-mono);font-size:.75rem;margin-right:6px;color:var(--accent)}
+
+/* contrat */
+.contrat{background:var(--surface2);border-bottom:1px solid var(--line)}
+.contrat .wrap{padding-block:12px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.field input,.field select{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:6px 8px;min-width:0;width:100%}
+.field.need select,.field.need input{border-color:var(--wish);background:var(--wish-soft)}
+.contrat summary{cursor:pointer;font-family:var(--f-display);font-weight:600;list-style:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.contrat summary::-webkit-details-marker{display:none}
+.contrat summary .chev{transition:transform .15s}
+.contrat details[open] summary .chev{transform:rotate(90deg)}
+.contrat details[open] summary{margin-bottom:10px}
+.pillrow{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:.78rem;padding:2px 8px;border-radius:99px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-weight:400;font-family:var(--f-body)}
+.pill.warn{border-color:var(--wish);color:var(--wish)}
+
+main .wrap{padding-block:18px 40px}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 12px;border-radius:0 8px 8px 0;font-size:.9rem}
+.note.warn{border-color:var(--wish);background:var(--wish-soft)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* codes */
+table{border-collapse:collapse;width:100%}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;font-weight:700;padding:6px}
+td{padding:4px 6px;border-top:1px solid var(--line);vertical-align:middle}
+.codes input,.codes select{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:5px 6px;width:100%;min-width:0}
+.codes td.c-code input{font-family:var(--f-mono);font-weight:600;width:90px}
+.codes td.t input{width:88px}
+.codes td.p input{width:64px}
+.codes td.h{font-family:var(--f-mono);white-space:nowrap}
+.codes tr.todo td{background:var(--wish-soft)}
+.codes .cnt{font-family:var(--f-mono);color:var(--muted);text-align:right}
+.chip{display:inline-flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-weight:600;font-size:.74rem;border-radius:5px;padding:1px 5px;line-height:1.35;min-width:2.2em}
+.k-jour{background:var(--jour);color:var(--jour-ink)} .k-nuit{background:var(--nuit);color:var(--nuit-ink)} .k-activite{background:var(--act);color:var(--act-ink)}
+.k-repos{background:var(--repos);color:var(--repos-ink)} .k-CA{background:var(--ca);color:var(--ca-ink)} .k-RTT{background:var(--rtt);color:var(--rtt-ink)}
+.k-FR{background:var(--fr);color:var(--fr-ink)} .k-RC{background:var(--rc);color:var(--rc-ink)} .k-HS{background:var(--hs);color:var(--hs-ink)} .k-CET{background:var(--rc);color:var(--rc-ink)}
+.k-maladie{background:var(--mal);color:var(--mal-ink)} .k-formation,.k-autre{background:var(--form);color:var(--form-ink)}
+.k-unknown{background:var(--unk);color:var(--bad);outline:1px dashed var(--bad)}
+
+/* année */
+.year{border-collapse:separate;border-spacing:2px;width:auto;min-width:100%}
+.year th{padding:2px;text-align:center;font-family:var(--f-mono);font-size:.68rem;letter-spacing:0}
+.year th.m{text-align:left;font-family:var(--f-display);font-size:.85rem;text-transform:none;letter-spacing:0;color:var(--ink);padding-right:8px;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1}
+.year td{padding:0;border:0}
+.year input{width:38px;height:30px;border:1px solid var(--line);border-radius:5px;text-align:center;font-family:var(--f-mono);font-size:.72rem;font-weight:600;padding:0;background:var(--surface)}
+.year input.we{border-color:var(--muted)}
+.year input.fe{box-shadow:inset 0 -3px 0 var(--accent)}
+.year input:disabled{visibility:hidden}
+.year td.x{width:38px}
+.legend{display:flex;gap:8px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);align-items:center}
+
+/* calendrier */
+.calwrap{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;align-items:start}
+@media (max-width:980px){.calwrap{grid-template-columns:minmax(0,1fr)}}
+.calhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.calhead h2{min-width:170px;text-transform:capitalize}
+.grid7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dow{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:center;font-weight:700;padding:4px 0}
+.day{min-height:84px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:6px;display:flex;flex-direction:column;gap:4px;text-align:left;position:relative;min-width:0}
+.day:hover{border-color:var(--accent)}
+.day.out{opacity:.35}
+.day .dn{font-family:var(--f-mono);font-size:.8rem;font-weight:600;display:flex;justify-content:space-between;gap:4px}
+.day.sun .dn b{color:var(--accent)}
+.day .fer{font-size:.66rem;color:var(--accent);line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.day .hrs{font-size:.7rem;color:var(--muted);font-family:var(--f-mono)}
+.day.wish{background:var(--wish-soft);border-color:var(--wish);box-shadow:inset 0 0 0 1px var(--wish)}
+.day .prop{font-size:.68rem;font-weight:700;color:var(--wish)}
+.day.today{outline:2px dashed var(--ink);outline-offset:-3px}
+@media (max-width:560px){.day{min-height:62px;padding:4px}.day .hrs,.day .fer{display:none}.chip{font-size:.66rem;min-width:0;padding:1px 3px}}
+.side{position:sticky;top:120px;display:flex;flex-direction:column;gap:12px}
+@media (max-width:980px){.side{position:static}}
+.ctr{width:100%}
+.ctr th,.ctr td{padding:5px 3px;font-size:.82rem}
+.ctr th{font-size:.66rem;letter-spacing:.03em}
+.ctr td{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctr td:first-child{font-family:var(--f-body);text-align:left;white-space:normal}
+@media (max-width:400px){.ctr th,.ctr td{padding:4px 2px;font-size:.76rem}.ctr th{font-size:.58rem;letter-spacing:0}}
+.ctr th:not(:first-child){text-align:right}
+.ctr .rest{font-weight:700}
+.ctr .neg{color:var(--bad)}
+.ctr .wishcol{color:var(--wish)}
+.kpi{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:.88rem}
+.kpi:first-of-type{border-top:0}
+.kpi b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.proplist{display:flex;flex-direction:column;gap:4px;font-size:.86rem;max-height:260px;overflow:auto}
+.proplist div{display:flex;justify-content:space-between;gap:8px}
+.tip{font-size:.84rem;padding:8px 10px;border-radius:8px;background:var(--ok-soft);color:var(--ink);border-left:3px solid var(--ok)}
+.tip.warn{background:var(--warn-soft);border-color:var(--warn)}
+.tip.bad{background:var(--bad-soft);border-color:var(--bad)}
+
+/* audit / stats */
+textarea{width:100%;min-height:260px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);padding:12px;font-family:var(--f-body);font-size:.92rem;line-height:1.5;resize:vertical}
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface)}
+.alert .sev{font-family:var(--f-mono);font-size:.68rem;font-weight:600;padding:2px 6px;border-radius:4px;height:fit-content;letter-spacing:.04em}
+.alert.bad .sev{background:var(--bad-soft);color:var(--bad)} .alert.warn .sev{background:var(--warn-soft);color:var(--warn)} .alert.ok .sev{background:var(--ok-soft);color:var(--ok)} .alert.info .sev{background:var(--accent-soft);color:var(--accent)}
+.alert .t{font-weight:700}
+.alert .d{grid-column:2;font-size:.86rem;color:var(--muted)}
+.alert .src{grid-column:2;font-size:.74rem;color:var(--muted);font-family:var(--f-mono)}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.stat h3{font-size:.9rem;margin-bottom:8px}
+.big{font-family:var(--f-display);font-size:1.9rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.bar100{display:grid;grid-template-columns:repeat(100,1fr);gap:1px;height:22px;margin:8px 0 4px}
+.bar100 i{display:block;background:var(--repos)}
+.bar100 i.j{background:#E3A21A} .bar100 i.n{background:#3B4BA0}
+.wk{display:grid;grid-template-columns:28px minmax(0,1fr) 44px;gap:6px;align-items:center;font-size:.8rem;margin:3px 0}
+.wk .b{height:12px;border-radius:3px;background:var(--accent);min-width:1px}
+.wk .v{font-family:var(--f-mono);text-align:right}
+.seg{display:flex;gap:2px;flex-wrap:wrap;margin-top:6px}
+.seg i{display:block;width:8px;height:14px;border-radius:2px;background:var(--repos)}
+.seg i.w{background:var(--accent)}
+.rules td{font-size:.86rem;vertical-align:top}
+.cert{font-family:var(--f-mono);font-size:.68rem;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.cert.c{background:var(--ok-soft);color:var(--ok)} .cert.p{background:var(--warn-soft);color:var(--warn)} .cert.h{background:var(--bad-soft);color:var(--bad)}
+.toast{max-width:min(92vw,520px);text-align:center;position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.excel-pick{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.excel-pick select{border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:var(--surface);max-width:100%}
+footer .wrap{padding-block:16px 30px;font-size:.8rem;color:var(--muted)}
+.ts{display:none}
+.yearbar{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px;align-items:start}
+.yearbar .field select,.yearbar .field input{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 8px;width:100%}
+.yearbar .field.over input{border-color:var(--bad);background:var(--bad-soft)}
+.hint{font-size:.74rem;color:var(--muted)}
+.field.over .hint{color:var(--bad);font-weight:700}
+.ktiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.ktile{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ktile span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.ktile b{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:1.05rem}
+.ktile small{color:var(--muted);font-size:.74rem}
+#mobWrap{display:none}
+.mchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.mchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px;white-space:nowrap;font-size:.85rem;flex:0 0 auto}
+.mchip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.mchip i{font-style:normal;color:inherit;opacity:.8}
+.mcell{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:.7rem;color:var(--muted);min-width:0}
+.mcell.we span{color:var(--accent);font-weight:600}
+.mcell.fe input{box-shadow:inset 0 -3px 0 var(--accent)}
+.mcell input{width:100%;height:42px;border:1px solid var(--line);border-radius:6px;text-align:center;font-family:var(--f-mono);font-weight:600;background:var(--surface);padding:0;min-width:0}
+.k-HSN{background:var(--ca);color:var(--ca-ink);box-shadow:inset 0 0 0 1px var(--ca-ink)}
+.wishbar{display:none}
+@media (max-width:760px){
+  .top .wrap{padding-block:8px;flex-wrap:nowrap}
+  .brand .tag{font-size:.66rem}
+  .brand h1{font-size:1.1rem}
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);overflow:visible}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 2px 10px;border-bottom:0;border-top:3px solid transparent;font-size:.8rem}
+  .tab[aria-selected="true"]{border-top-color:var(--accent);border-bottom-color:transparent;color:var(--accent)}
+  .tab .n{display:none}
+  .tl{display:none}.ts{display:inline}
+  body{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+  input,select,textarea{font-size:16px!important}
+  .btn{padding:9px 12px}
+  main .wrap{padding-block:12px 24px}
+  .card{padding:12px}
+  #yearWrap{display:none}#mobWrap{display:block}
+  .toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  .codes thead{display:none}
+  .codes,.codes tbody{display:block}
+  .codes tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 8px;padding:10px 0;border-top:1px solid var(--line)}
+  .codes td.c-code{grid-column:span 2}.codes td.lib{grid-column:span 4}.codes td.cat{grid-column:span 6}
+  .codes td.t{grid-column:span 2}.codes td.h{grid-column:span 1;justify-content:flex-end}.codes td.del{grid-column:span 1}
+  .codes td.t:empty,.codes td.t:empty+td.t:empty{display:none}
+  .codes td{display:flex;flex-direction:column;gap:3px;border:0;padding:0;min-width:0}
+  .codes td::before{content:attr(data-l);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  .codes td.c-code input,.codes td.t input,.codes td.p input{width:100%}
+  .codes tr.todo{background:var(--wish-soft);border-radius:8px;padding:12px 8px}
+  .codes tr.todo td{background:transparent}
+  .codes td.del{justify-content:flex-end;align-items:flex-end}
+  .wishbar:not([hidden]){display:flex;position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:25;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px;align-items:center;justify-content:space-between;gap:10px;font-size:.9rem;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .wishbar .btn{background:var(--wish);border-color:var(--wish);color:#1A0F07;font-weight:700}
+  #p3 .calwrap{padding-bottom:64px}
+  .day{min-height:58px}
+}
+.ti{font-size:1rem;line-height:1}
+.tabs .ti{display:none}
+.desk{display:inline}
+.wrapchips{flex-wrap:wrap;overflow:visible}
+.excand{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.excand>div{min-width:0}
+.exhead{font-size:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.exopt{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.exopt summary{cursor:pointer;font-weight:700}
+.inp{border:1px solid var(--line);border-radius:7px;padding:7px 8px;background:var(--surface);min-width:0;flex:1 1 140px}
+.linkbtn{border:0;background:none;color:var(--accent);text-decoration:underline;padding:8px 4px;min-height:36px;font:inherit;cursor:pointer}
+.ktile b{white-space:nowrap}
+.savebar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem;padding:8px 12px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.savebar.warn{background:var(--wish-soft);border-color:var(--wish)}
+.savebar.bad{background:var(--bad-soft);border-color:var(--bad)}
+.savebar .btn{padding:6px 10px}
+.help summary{cursor:pointer;font-weight:700}
+.help ul{margin:6px 0 0;padding-left:20px}
+.help li{margin:3px 0}
+.estim{font-size:.78rem;color:var(--muted)}
+.codeleg{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.8rem;color:var(--muted);margin-top:8px}
+.codeleg span{display:inline-flex;gap:4px;align-items:center}
+.lex dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:8px 0 0;font-size:.85rem}
+.lex dt{font-family:var(--f-mono);font-weight:700}
+.lex dd{margin:0;color:var(--muted)}
+.year input.mod-cede,.mcell input.mod-cede{text-decoration:line-through;opacity:.55}
+.year input.mod-recup,.mcell input.mod-recup{box-shadow:inset 0 0 0 2px var(--rc-ink)}
+.year input.mod-hs,.mcell input.mod-hs{box-shadow:inset 0 0 0 2px var(--ok)}
+.day.cede .chip{text-decoration:line-through;opacity:.6}
+.day .modt{font-size:.64rem;color:var(--muted);line-height:1.15;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.xbtn{padding:3px 6px;font-size:.9rem}
+#setupNotice:empty{display:none}
+.setup{display:flex;flex-direction:column;gap:8px}
+.setup ol{margin:0;padding-left:20px}
+.k-cede{background:var(--repos);color:var(--repos-ink)}
+@media (max-width:760px){
+  .tabs{grid-template-columns:repeat(5,1fr)}
+  .tabs .ti{display:block;font-size:1.15rem}
+  .tab{font-size:.7rem}
+  .desk{display:none}
+  .toast{bottom:auto;top:calc(64px + env(safe-area-inset-top,0px))}
+  .excand{flex-direction:column;align-items:stretch}
+  .excand .btn{justify-content:center}
+}
+.yearnav{display:flex;gap:6px;align-items:center}
+.yearnav select{flex:1;min-width:0}
+.yearnav .btn{padding:6px 12px}
+.mnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.mnav b{font-family:var(--f-display);font-size:1.1rem;text-transform:capitalize}
+.legend-t{flex-basis:100%;font-size:.8rem;color:var(--muted)}
+.year input.k-jour,.mcell input.k-jour{background:var(--jour);color:var(--jour-ink)}
+.year input.k-nuit,.mcell input.k-nuit{background:var(--nuit);color:var(--nuit-ink)}
+.year input.k-activite,.mcell input.k-activite{background:var(--act);color:var(--act-ink)}
+.year input.k-repos,.mcell input.k-repos{background:var(--repos);color:var(--repos-ink)}
+.year input.k-CA,.mcell input.k-CA{background:var(--ca);color:var(--ca-ink)}
+.year input.k-HSN,.mcell input.k-HSN{background:var(--ca);color:var(--ca-ink)}
+.year input.k-RTT,.mcell input.k-RTT{background:var(--rtt);color:var(--rtt-ink)}
+.year input.k-FR,.mcell input.k-FR{background:var(--fr);color:var(--fr-ink)}
+.year input.k-RC,.mcell input.k-RC{background:var(--rc);color:var(--rc-ink)}
+.year input.k-HS,.mcell input.k-HS{background:var(--hs);color:var(--hs-ink)}
+.year input.k-CET,.mcell input.k-CET{background:var(--rc);color:var(--rc-ink)}
+.year input.k-maladie,.mcell input.k-maladie{background:var(--mal);color:var(--mal-ink)}
+.year input.k-formation,.mcell input.k-formation{background:var(--form);color:var(--form-ink)}
+.year input.k-autre,.mcell input.k-autre{background:var(--form);color:var(--form-ink)}
+.year input.k-unknown,.mcell input.k-unknown{background:var(--unk);color:var(--bad);border:1px dashed var(--bad)}
+.year input.k-HSN,.mcell input.k-HSN{box-shadow:inset 0 0 0 1px var(--ca-ink)}
+.mcell.we input{border-color:var(--muted)}
+.gcal{justify-content:flex-start;white-space:normal;text-align:left}
+.day.locked{background:var(--surface2)}
+.day.locked:not(.green):not(.ferie) .dn b{color:var(--muted)}
+.day.green{background:var(--ca);border-color:var(--ca-ink)}
+.day.ferie{border:2px solid var(--accent);background:var(--accent-soft)}
+.day.ferie.green{background:var(--ca)}
+#contratBox summary{list-style:none;cursor:pointer;font-family:var(--f-display);font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#contratBox summary::-webkit-details-marker{display:none}
+#contratBox[open] summary{margin-bottom:10px}
+#contratBox summary .chev{transition:transform .15s}
+#contratBox[open] summary .chev{transform:rotate(90deg)}
+.ferb .fs{display:none}
+@media (max-width:560px){.ferb .fl{display:none}.ferb .fs{display:inline}}
+.ferb{font-size:.56rem;letter-spacing:.04em;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:0 3px;font-weight:700;align-self:center}
+.contratcard summary{font-size:1.1rem}
+.exbadge{font-size:.7rem;background:var(--ok-soft);color:var(--ok);border-radius:99px;padding:0 6px;margin-left:4px;font-weight:700}
+.exbadge.zero{background:var(--repos);color:var(--muted)}
+.hdr{flex-wrap:nowrap}
+@media (max-width:420px){.hdr .bl{display:none}.hdr .bs{display:inline}.hdr .btn{padding:7px 9px;font-size:.85rem}.brand .tag{display:none}.brand h1{font-size:1rem}}
+.hdr .bs{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>Planning Hôpital</h1><span class="tag">v11</span></div>
+    <div class="actions hdr">
+      <button class="btn" id="btnExport" type="button" title="Sauvegarder mes données (.json)"><span aria-hidden="true">💾</span><span class="bl">Sauvegarder</span><span class="bs">Sauver</span></button>
+      <label class="btn" for="fileJson" title="Recharger une sauvegarde (.json)"><span aria-hidden="true">📂</span><span class="bl">Recharger</span><span class="bs">Charger</span></label>
+      <input type="file" id="fileJson" accept=".json,application/json" hidden>
+    </div>
+  </div>
+  <div class="wrap">
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="p2" aria-selected="true" id="t-p2"><span class="ti" aria-hidden="true">🗓️</span><span class="tl">Planning</span><span class="ts">Planning</span></button>
+      <button class="tab" role="tab" data-tab="pE" aria-selected="false" id="t-pE"><span class="ti" aria-hidden="true">↕️</span><span class="tl">Échanges &amp; heures sup</span><span class="ts">Échanges</span></button>
+      <button class="tab" role="tab" data-tab="p3" aria-selected="false" id="t-p3"><span class="ti" aria-hidden="true">🌴</span><span class="tl">Congés</span><span class="ts">Congés</span></button>
+      <button class="tab" role="tab" data-tab="p1" aria-selected="false" id="t-p1"><span class="ti" aria-hidden="true">⚙️</span><span class="tl">Réglages</span><span class="ts">Réglages</span></button>
+      <button class="tab" role="tab" data-tab="p4" aria-selected="false" id="t-p4"><span class="ti" aria-hidden="true">📋</span><span class="tl">Audit &amp; stats</span><span class="ts">Bilan</span></button>
+
+    </nav>
+  </div>
+</header>
+
+
+
+<main>
+<div class="wrap">
+
+<!-- ONGLET 1 -->
+<section class="panel" id="p1" role="tabpanel" aria-labelledby="t-p1">
+  <div class="stack">
+    <div class="card stack" id="saveCard">
+      <h2>💾 Sauvegarde de mes données</h2>
+      <p class="muted small" style="margin:0">Vos données restent sur ce téléphone. Sauvegardez-les régulièrement dans un fichier .json, puis rechargez ce fichier sur un autre appareil ou après un effacement du navigateur.</p>
+      <div class="row"><button type="button" class="btn primary" id="btnSave2">💾 Sauvegarder (.json)</button><label class="btn" for="fileJson">📂 Recharger une sauvegarde (.json)</label><button class="btn ghost danger" id="btnReset" type="button">Tout effacer</button></div>
+      <p class="muted small" style="margin:0" id="saveInfo"></p>
+      <div class="help" id="helpFiles"></div>
+    </div>
+    <div class="card contratcard"><details id="contratBox" open>
+      <summary><span class="chev">▸</span>Mon contrat <span class="pillrow" id="contratPills"></span></summary>
+      <div class="cgrid">
+        <div class="field"><label for="f-nom">Nom</label><input id="f-nom" data-bind="profil.nom" placeholder="Prénom NOM"></div>
+        <div class="field"><label for="f-cadre">Cadre (pour la demande)</label><input id="f-cadre" data-bind="profil.cadre" placeholder="Mme / M. …"></div>
+        <div class="field"><label for="f-statut">Statut</label><select id="f-statut" data-bind="profil.statut"><option>Titulaire</option><option>Stagiaire</option><option>CDI</option><option>CDD</option></select></div>
+        <div class="field" id="w-fincdd"><label for="f-fincdd">Fin du CDD</label><input type="date" id="f-fincdd" data-bind="profil.finCDD"></div>
+        <div class="field"><label for="f-entree">Arrivée (si en cours d'année)</label><input type="date" id="f-entree" data-bind="profil.entree"></div>
+        <div class="field"><label for="f-anc">Ancienneté (années)</label><input type="number" min="0" step="0.5" id="f-anc" data-bind="profil.anciennete" data-num></div>
+        <div class="field"><label for="f-base">Base hebdo</label><select id="f-base" data-bind="profil.base" data-num><option value="">À choisir</option><option value="35">35 h</option><option value="35.5">35 h 30</option><option value="36">36 h</option><option value="36.5">36 h 30</option><option value="37">37 h</option><option value="37.5">37 h 30</option><option value="38">38 h</option><option value="38.33">38 h 20</option><option value="39">39 h</option></select></div>
+        <div class="field"><label for="f-quot">Quotité</label><select id="f-quot" data-bind="profil.quotite" data-num><option value="100">Temps plein</option><option value="90">90 %</option><option value="80">80 %</option><option value="70">70 %</option><option value="60">60 %</option><option value="50">50 %</option></select></div>
+        <div class="field"><label for="f-debut">Début de la période annuelle</label><input type="date" id="f-debut" data-bind="profil.debut"></div>
+        <div class="field" id="w-decompte"><label for="f-dec">Décompte des congés sur une garde</label><select id="f-dec" data-bind="profil.decompte"><option value="">À vérifier</option><option value="jours">En jours (1 garde = 1 j)</option><option value="heures">En heures (1 garde = 12 h)</option></select></div>
+        <div class="field"><label for="f-genre">Accords dans les textes</label><select id="f-genre" data-bind="profil.genre"><option value="n">absent(e)</option><option value="f">absente</option><option value="m">absent</option></select></div>
+        <div class="field"><label for="f-hs">Heures sup : je préfère</label><select id="f-hs" data-bind="profil.hsMode"><option value="recup">Les récupérer</option><option value="paye">Qu'on me les paie</option></select></div>
+      </div>
+    </details></div>
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between">
+        <div><h2>Codes du planning</h2><p class="muted small" style="margin:4px 0 0">Les lignes orange sont à compléter : donnez la catégorie et les horaires. Une garde sans horaire n'est pas comptée dans les heures.</p></div>
+        <div class="row"><button class="btn" id="btnDetect" type="button">Détecter les codes de mon planning</button><button class="btn primary" id="btnAddCode" type="button">+ Ajouter un code</button></div>
+      </div>
+      <div class="scroll">
+        <table class="codes" id="codesTable">
+          <thead><tr><th>Code</th><th>Signification</th><th>Catégorie</th><th>Début</th><th>Fin</th><th>Heures comptées</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card stack">
+        <h2>Réglages de calcul</h2>
+        <div class="cgrid">
+          <div class="field"><label for="f-reg">Régime horaire</label><select id="f-reg" data-bind="profil.regime"><option value="auto">Automatique</option><option value="fixe">Repos fixe · 1 607 h</option><option value="variable">Repos variable · 1 582 h</option><option value="nuit">Nuit exclusive · 1 476 h</option></select></div>
+          <div class="field"><label for="f-oat">Heures annuelles fixées par l'hôpital</label><input type="number" id="f-oat" data-bind="profil.oatManuelle" data-num placeholder="vide = calcul"></div>
+          <div class="field"><label for="f-vj">Valeur d'une journée (h)</label><input type="number" step="0.01" id="f-vj" data-bind="profil.valeurJour" data-num></div>
+          <div class="field"><label for="f-hg">Durée d'une garde (h)</label><input type="number" step="0.25" id="f-hg" data-bind="profil.dureeGarde" data-num></div>
+          <div class="field"><label for="f-frm">Fériés à récupérer / an</label><input type="number" id="f-frm" data-bind="profil.frManuel" data-num placeholder="vide = auto"></div>
+          <div class="field"><label for="f-rca">Reliquat CA année passée (j)</label><input type="number" step="0.5" id="f-rca" data-bind="profil.reliquatCA" data-num></div>
+          <div class="field"><label for="f-rrtt">Reliquat RTT (j)</label><input type="number" step="0.5" id="f-rrtt" data-bind="profil.reliquatRTT" data-num></div>
+          <div class="field"><label for="f-rhs">Heures sup déjà acquises (h)</label><input type="number" step="0.25" id="f-rhs" data-bind="profil.reliquatHS" data-num></div>
+          <div class="field"><label for="f-cet">Solde CET au départ (h)</label><input type="number" step="1" id="f-cet" data-bind="profil.cetInitial" data-num></div>
+        </div>
+        <p class="muted small" style="margin:0">Ces réglages dépendent du protocole temps de travail de votre hôpital. En cas de doute, demandez la fiche « obligation annuelle de travail » à la DRH.</p>
+      </div>
+      <div class="card stack">
+        <h2>Règles appliquées</h2>
+        <p class="muted small" style="margin:0" id="rulesVer"></p>
+        <div class="scroll"><table class="rules" id="rulesTable"><tbody></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ONGLET 2 -->
+<section class="panel on" id="p2" role="tabpanel" aria-labelledby="t-p2">
+  <div class="stack">
+    <div id="setupNotice"></div>
+    <div class="card stack" id="agendaCard">
+      <h2>📅 Mettre mes gardes dans mon agenda</h2>
+      <p class="muted small" style="margin:0">Les échanges et heures sup validés sont inclus : ❌ garde cédée (sans rappel), ↕️ garde récupérée, 💵 heures sup. Le lieu de la garde (étage, bloc…) est indiqué dans chaque événement.</p>
+      <div class="row">
+        <select id="icsRange" aria-label="Période" class="inp" style="flex:0 1 auto"><option value="next">À partir d'aujourd'hui</option><option value="month">Le mois affiché</option><option value="all">L'année affichée</option></select>
+        <label class="small"><input type="checkbox" id="icsAlarm" checked> rappel 1 h avant</label>
+        <label class="small"><input type="checkbox" id="icsAbs" checked> congés et repos</label>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="btnIos" type="button">🍎 iPhone, iPad ou Mac</button>
+        <button class="btn primary" id="btnAndroid" type="button">🤖 Android / Google Agenda</button>
+        <button class="btn" id="btnIcs" type="button">⬇️ Fichier .ics</button>
+      </div>
+      <div id="gcalList" class="stack" style="gap:6px"></div>
+      <p class="muted small" style="margin:0"><b>iPhone / iPad</b> : l'agenda s'ouvre avec la liste des gardes, touchez « Tout ajouter ». <b>Mac</b> : le fichier se télécharge, ouvrez-le et Calendrier propose de tout ajouter. <b>Android</b> : chaque garde s'ouvre dans Google Agenda déjà remplie, touchez « Enregistrer ». Si une garde était déjà dans l'agenda, supprimez l'ancienne.</p>
+    </div>
+    <div class="card stack">
+      <div class="yearbar">
+        <div class="field"><label for="f-annee">Année</label><div class="yearnav"><button type="button" class="btn" id="yPrev" aria-label="Année précédente">‹</button><select id="f-annee"></select><button type="button" class="btn" id="yNext" aria-label="Année suivante">›</button></div></div>
+        <div class="field"><label for="f-cetv">Versé au CET (h)</label><input type="number" min="0" step="1" inputmode="decimal" id="f-cetv"><span class="hint" id="h-cetv"></span></div>
+        <div class="field"><label for="f-cetp">CET payé (h)</label><input type="number" min="0" step="1" inputmode="decimal" id="f-cetp"><span class="hint" id="h-cetp"></span></div>
+        <div class="field"><label for="f-ceto">CET ouvert en</label><input type="number" inputmode="numeric" id="f-ceto" data-bind="profil.cetOuverture" data-num placeholder="année"></div>
+      </div>
+      <div class="ktiles" id="yearKpis"></div>
+      <p class="estim" id="yearEstim" style="margin:0"></p>
+    </div>
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div style="min-width:0;flex:1 1 300px">
+          <h2>Mon planning</h2>
+          <p class="muted small" style="margin:4px 0 0">Importez les fichiers Excel du service (plusieurs à la fois) puis choisissez votre nom. Ou copiez votre ligne dans Excel et collez-la dans la case du 1<sup>er</sup> du mois.</p>
+        </div>
+        <div class="excel-pick">
+          <label class="btn primary" for="fileXlsx">Importer des fichiers Excel</label>
+          <input type="file" id="fileXlsx" accept=".xlsx,.xls" multiple hidden>
+          <input type="file" id="fileMonth" accept=".xlsx,.xls" hidden>
+          <select id="xlsxName" hidden aria-label="Choisir mon nom"></select>
+          <button class="btn primary" id="xlsxApply" type="button" hidden>Remplir mon planning</button>
+        </div>
+      </div>
+      <div id="importReport"></div>
+      <div class="legend" id="legend"></div>
+      <div id="yearWrap" class="scroll"><table class="year" id="yearTable"></table></div>
+      <details class="help lex"><summary>Que veulent dire les sigles ?</summary><dl id="lexique"></dl></details>
+      <div id="mobWrap"><div class="mnav"><button type="button" class="btn" id="mPrev" aria-label="Mois précédent">‹</button><b id="mTitle"></b><button type="button" class="btn" id="mNext" aria-label="Mois suivant">›</button></div><div class="mchips" id="mobChips"></div><div class="grid7" id="mobDow"></div><div class="grid7" id="mobGrid"></div><button type="button" class="btn" id="mobLoad" style="margin-top:10px;width:100%;justify-content:center"></button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ÉCHANGES -->
+<section class="panel" id="pE" role="tabpanel" aria-labelledby="t-pE">
+  <div class="stack">
+    <div id="exDoneBox"></div>
+    <div class="card stack">
+      <h2>💵 Ajouter une garde en heures sup</h2>
+      <p class="muted small" style="margin:0">Quand le service cherche quelqu'un pour remplacer un arrêt de dernière minute. Les repos et le plafond d'heures sup sont vérifiés avant de valider.</p>
+      <div class="cgrid">
+        <div class="field"><label for="hsDate">Date de la garde proposée</label><input type="date" id="hsDate"></div>
+        <div class="field"><label for="hsCode">Garde</label><select id="hsCode"></select></div>
+      </div>
+      <div id="hsResult" class="stack" style="gap:6px"></div>
+      <button type="button" class="btn primary" id="hsValid" style="align-self:flex-start">Valider et ajouter à mon planning</button>
+    </div>
+    <div class="card stack">
+      <h2>↕️ Échanger une garde</h2>
+      <p class="muted small" style="margin:0" id="exTeamInfo"></p>
+      <div class="mchips" id="exMonths"></div>
+      <p class="small" style="margin:0">Vos gardes à venir ce mois-ci (chiffre vert = nombre d'échanges possibles). Touchez-en une :</p>
+      <div class="mchips wrapchips" id="exMine"></div>
+      <div id="exDetail" class="stack"></div>
+    </div>
+    <div class="card stack">
+      <h2>Gardes dues et historique</h2>
+      <div id="exHist" class="stack" style="gap:8px"></div>
+    </div>
+  </div>
+  <datalist id="teamNames"></datalist>
+</section>
+
+<!-- ONGLET 3 -->
+<section class="panel" id="p3" role="tabpanel" aria-labelledby="t-p3">
+  <div class="calwrap">
+    <div class="stack" style="min-width:0">
+    <div class="card">
+      <div class="calhead">
+        <button class="btn" id="calPrev" type="button" aria-label="Mois précédent">‹</button>
+        <h2 id="calTitle"></h2>
+        <button class="btn" id="calNext" type="button" aria-label="Mois suivant">›</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="btnClearWish" type="button">Vider mes souhaits</button>
+      </div>
+      <p class="muted small" style="margin:0 0 10px">Touchez les jours que vous aimeriez avoir libres dans un mois dont le planning n'est pas encore publié : ils passent en orange. Dans un mois déjà publié, touchez une garde pour l'échanger. <span class="desk">Maj + clic sélectionne une plage.</span></p>
+      <div class="grid7" id="calDow"></div>
+      <div class="grid7" id="calGrid"></div>
+      <div class="legend" style="margin-top:8px"><span class="chip k-CA">Vert : repos ou congé déjà au planning</span><span class="chip" style="border:2px solid var(--accent)">Cadre violet : férié</span><span class="chip" style="outline:2px dashed var(--ink);outline-offset:-2px">Pointillés : aujourd'hui</span><span class="chip" style="background:var(--wish-soft);color:var(--wish)">Orange : vos souhaits</span><span class="chip k-repos">Grisé : planning publié ou jour passé</span></div>
+      <div class="codeleg" id="calCodes"></div>
+    </div>
+    </div>
+    <aside class="side" id="side"></aside>
+    <div class="card stack" id="demandeCard" style="grid-column:1;min-width:0">
+      <div class="row" style="justify-content:space-between"><h3>Demande de congés au cadre</h3><button class="btn primary" id="btnCopy" type="button">Copier le texte</button></div>
+      <textarea id="demande" spellcheck="false" aria-label="Texte de la demande" placeholder="Touchez vos jours souhaités dans le calendrier : la demande se rédige ici automatiquement."></textarea>
+      <p class="muted small" style="margin:0">Le texte reprend vos jours en orange et la répartition proposée. Vous pouvez le modifier avant de copier.</p>
+    </div>
+    <div class="wishbar" id="wishBar" hidden></div>
+  </div>
+</section>
+
+<!-- ONGLET 4 -->
+<section class="panel" id="p4" role="tabpanel" aria-labelledby="t-p4">
+  <div class="stack">
+    <div class="card stack">
+      <h2>Statistiques</h2>
+      <p class="muted small" style="margin:0" id="statsRange"></p>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="card stack">
+      <h2>Audit du planning</h2>
+      <p class="muted small" style="margin:0" id="auditRange"></p>
+      <div class="alerts" id="alerts"></div>
+    </div>
+  </div>
+</section>
+
+</div>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+/* ====================== RÈGLES ====================== */
+const RULES = {
+  oat:{fixe:1607, variable:1582, nuit:1476, seuilVariable:10, partNuitExclusive:0.9},
+  rc:{seuil:20, jours:2},
+  ca:{jours:25, hs1:3, hs1b:1, hs2:6, hs2b:2, frac:{periodes:3, min:5, bonus:1}, maxAbsence:31},
+  rtt:[[38.33,20],[38,18],[37.5,15],[37,12],[36.5,9],[36,6],[35.5,3],[35,0]], joursTravaillesAn:228,
+  repos:{quotidien:12, hebdo:36, quinzaine:4, max7j:48, maxPoste:12, enchainement:3, maxSemaine:44},
+  hs:{contingentAn:240, contingentMois:20},
+  primes:{dimFer8h:60, nuitTaux:0.25},
+  version:"11", verif:"19/10/2026",
+  cet:{plafond:60, plafondH:420, minCA:20, ancienneteAns:1, verse1H:105, verseH:70, payeMaxH:70}
+};
+const RULES_DOC = [
+  ["Durée annuelle : 1 607 h ; 1 582 h en repos variable (≥ 10 dimanches/fériés dans l'année civile) ; 1 476 h si ≥ 90 % du temps la nuit","Décret 2002-9, art. 1 à 3","c"],
+  ["Alternance jour/nuit : durée = p × 1 476 + (1 − p) × 1 582, p = part du temps de travail faite de nuit","Décret 2002-9, art. 4 ; circulaire DHOS 2003-295","c"],
+  ["Jours hors saison et jour de fractionnement : ils réduisent encore la durée annuelle","Décret 2002-9, art. 3 ; décret 2002-8, art. 1","c"],
+  ["2 jours de repos compensateurs si ≥ 20 dimanches ou fériés travaillés dans l'année civile","Décret 2002-9, art. 3","c"],
+  ["CA : 5 × obligations hebdo = 25 jours (temps plein) ; temps partiel : 5 × jours travaillés par semaine","Décret 2002-8, art. 1","c"],
+  ["En horaire irrégulier, CA possible en capital d'heures (5 × durée hebdo, soit 175 h) : chaque jour posé débite les heures prévues ce jour-là (une garde = 12 h)","Circulaire DHOS 2002-240, point 3.2","c"],
+  ["Hors saison (CA pris du 1er nov. au 30 avril, RTT exclus) : +1 jour pour 3 à 5 jours, +2 pour 6 jours et plus","Décret 2002-8, art. 1","c"],
+  ["Fractionnement : +1 jour si les CA sont pris en au moins 3 périodes d'au moins 5 jours ouvrés","Décret 2002-8, art. 1","c"],
+  ["Absence au titre des CA : 31 jours consécutifs au plus ; 3 semaines d'affilée l'été de droit sauf nécessité de service","Décret 2002-8, art. 2 et 4","c"],
+  ["Pas de report des CA sauf autorisation ; report de 15 mois si non pris pour maladie (4 semaines)","Décret 2002-8, art. 4 ; décret 2025-564","c"],
+  ["RTT : 35 h 30 → 3 j, 36 h → 6, 36 h 30 → 9, 37 h → 12, 37 h 30 → 15, 38 h → 18, 38 h 20 à 39 h → 20","Décret 2002-9, art. 11","c"],
+  ["La maladie réduit les RTT : 1 RTT en moins par tranche de 228 / nb RTT jours d'absence","Circulaire du 18/01/2012","c"],
+  ["Absence justifiée (maladie, autorisation) : comptée 1/5 des obligations hebdo, soit 7 h, même sur une garde de 12 h","Décret 2002-9, art. 14 ; QE 3955 (2018)","c"],
+  ["Repos variable : férié tombant sur un repos = 7 h à récupérer ; férié travaillé = la durée faite (12 h)","Circulaire DHOS 2002-240, point 3.6","c"],
+  ["Repos 12 h entre deux postes (11 h seulement si accord collectif local) ; 36 h consécutives par semaine","Décret 2002-9, art. 6 ; décret 2021-1544","c"],
+  ["4 jours de repos par 2 semaines calendaires, dont 2 jours entiers consécutifs incluant un dimanche","Décret 2002-9, art. 6 ; CAA Lyon 17LY01546","c"],
+  ["48 h maximum sur 7 jours heures sup comprises ; 44 h par semaine hors heures sup ; 3 gardes de 12 h d'affilée au plus","Décret 2002-9, art. 6 et 9 ; instruction DGOS/RH3/2015/3","c"],
+  ["Changement d'heure : la nuit du passage à l'heure d'hiver (fin octobre) dure 13 h, celle du passage à l'heure d'été (fin mars) 11 h ; l'outil compte la durée réelle","Méthode de l'outil (durée effective)","p"],
+  ["Solde d'heures en cours d'année : obligation et droits à congés répartis sur les mois chargés, congés pris remis au crédit","Méthode de l'outil","h"],
+  ["Garde de 12 h : dérogation après avis du CSE ; pauses et transmissions comprises dans les 12 h","Décret 2002-9, art. 7 ; instruction DGOS 2015","c"],
+  ["Planning communiqué 15 jours avant ; modification notifiée 48 h avant sauf urgence","Décret 2002-9, art. 13","c"],
+  ["Heures sup : 240 h par an, 20 h par mois ; récupérées à durée au moins égale ou payées","Décret 2002-9, art. 15","c"],
+  ["CET : après 1 an de service continu (pas les stagiaires) ; CA au-delà de 20 jours pris, RTT, heures sup ; plafond 60 jours","Décret 2002-788 ; service-public F587","c"],
+  ["CET du service : versement de 105 h (15 × 7 h) maximum la 1re année puis 70 h (10 × 7 h) par an ; paiement de 70 h maximum par an (150 € brut le jour en catégorie A)","Règle du service ; décret 2002-788","p"],
+  ["Maladie : 1 jour de carence par arrêt, puis 90 % du traitement pendant 3 mois (titulaires)","Loi 2025-127, art. 189","c"],
+  ["Indemnité dimanche/férié : 60 € pour 8 h, soit 90 € pour 12 h ; indemnité de nuit : 25 % du taux horaire, de 21 h à 6 h","Arrêté du 22/12/2023 ; décret 2023-1238","p"],
+  ["Décompte d'une garde en jours ou en heures : à fixer selon le protocole de l'hôpital","Protocole local","h"],
+  ["Congés annuels, RTT et récupérations peuvent se suivre sur une même absence (31 jours de congés annuels d'affilée au maximum)","Décret 2002-8, art. 4 ; protocoles hospitaliers","p"],
+  ["L'employeur ne peut pas imposer la récupération des heures sup : c'est à l'agent de choisir récupération ou paiement selon les modalités du service","TA Marseille, 2023","p"],
+  ["Aucune règle n'interdit de travailler après une journée de récupération : seul le repos de 12 h entre deux postes s'applique","Décret 2002-9, art. 6","p"],
+  ["Fériés tombant un dimanche : non comptés ici par défaut","Méthode de l'outil","h"],
+  ["Récupération d'heures sup : à durée égale (une garde de 12 h = 12 h) et seulement si votre solde d'heures n'est pas négatif. Aucune règle n'interdit de travailler après une récupération : seul le repos de 12 h entre deux postes s'applique","Décret 2002-9, art. 6 et 15 ; guide statutaire d'un CH (exemple)","p"],
+  ["Repos compensateurs : planifiés par le cadre à l'intérieur du cycle, ils ne se posent pas comme des congés","Guide statutaire d'un CH (exemple)","p"],
+  ["Férié qui tombe pendant des CA : pas de récupération ; seuls les agents en repos variable récupèrent les fériés tombant sur un repos","Guide statutaire d'un CH (exemple)","p"],
+  ["Congés : demandés avant la publication du planning ; une fois le planning publié, seuls les échanges de gardes sont possibles","Organisation du service","p"],
+  ["Horaires : gardes 8 h–20 h ou 7 h 30–19 h 30, nuits 20 h–8 h ou 19 h 30–7 h 30, journées 7 h 30–16 h","Organisation du service","p"]
+];
+
+/* ====================== CODES PAR DÉFAUT ====================== */
+const CATS = {
+  jour:{l:"Garde de jour", work:true}, nuit:{l:"Garde de nuit", work:true}, activite:{l:"Journée", work:true},
+  repos:{l:"Repos"}, CA:{l:"Congé annuel", ctr:"CA"}, HSN:{l:"Hors saison", ctr:"CA"}, RTT:{l:"RTT", ctr:"RTT"}, FR:{l:"Férié récupéré", ctr:"FR"},
+  RC:{l:"Repos comp.", ctr:"RC"}, HS:{l:"Récup. heures sup", ctr:"HS"}, CET:{l:"Jour de CET", ctr:"CET"},
+  maladie:{l:"Maladie / absence", credit:true}, formation:{l:"Formation", credit:true}, autre:{l:"Autre absence", credit:true}
+};
+function mk(code,lib,cat,debut,fin,extra){return Object.assign({code,lib,cat,debut:debut||"",fin:fin||"",pause:0,credit:null},extra||{});}
+const DEFAULT_CODES = [
+  mk("G2","Garde 2e étage","jour","08:00","20:00"), mk("G3","Garde 3e étage","jour","08:00","20:00"), mk("GP","Garde pathologie","jour","07:30","19:30"),
+  mk("N","Nuit bloc","nuit","19:30","07:30"), mk("N2","Nuit 2e étage","nuit","20:00","08:00"), mk("N3","Nuit 3e étage","nuit","20:00","08:00"), mk("NP","Nuit pathologie","nuit","19:30","07:30"),
+  mk("JB","Journée bloc","activite","07:30","16:00"), mk("JE","Journée entrée / urgences","activite","07:30","16:00"), mk("JS","Journée SKEF","activite","07:30","16:00"),
+  mk("JP","Journée pathologie","activite","07:30","16:00"), mk("E","Garde entrée / urgences","jour","08:00","20:00"),
+  mk("R","Repos","repos"), mk("CA","Congé annuel","CA"), mk("HS","Congé hors saison","HSN"), mk("RTT","RTT","RTT"), mk("FR","Férié récupéré","FR"),
+  mk("CET","Jour pris sur le CET","CET"), mk("AM","Arrêt maladie","maladie")
+];
+const KNOWN = new Set(DEFAULT_CODES.map(c=>c.code));
+// noms courts des compteurs (affichage)
+const KLAB={CA:"CA",RTT:"RTT",FR:"férié à récup.",RC:"repos comp.",HS:"récup. heures sup",CET:"CET"};
+const LEXIQUE=[["CA","Congés annuels (25 jours par an à temps plein)"],["RTT","Jours de réduction du temps de travail, selon votre base horaire"],["CET","Compte épargne-temps : pour mettre de côté des congés ou des heures"],["HS","Sur le planning : congé hors saison (jour gagné en posant des CA de novembre à avril). Dans les compteurs : heures sup"],["RC","Repos compensateur : 2 jours si vous travaillez au moins 20 dimanches ou fériés dans l'année"],["FR","Férié récupéré : jour férié à reprendre"],["FPH","Fonction publique hospitalière"],["DRH","Direction des ressources humaines"],["Décompte","Façon de compter un congé posé sur une garde : 1 jour ou 12 h"],["Obligation","Nombre d'heures à travailler sur l'année (1 607 h, 1 582 h ou moins selon les nuits)"],["Sujétion","Indemnités pour le travail le dimanche, les jours fériés et la nuit"]];
+
+function defaultState(){return {
+  v:2,cetAns:{},equipe:{},mods:{},dettes:[],importInfo:null,lastExport:0,dirty:0,
+  profil:{cetInitial:0,cetOuverture:null,nom:"",cadre:"",statut:"Titulaire",finCDD:"",entree:"",anciennete:1,base:null,quotite:100,debut:`${new Date().getFullYear()}-01-01`,decompte:"",genre:"n",hsMode:"recup",moment:"avant",
+    regime:"auto",oatManuelle:null,valeurJour:7,dureeGarde:12,frManuel:null,reliquatCA:0,reliquatRTT:0,reliquatHS:0,cet:0},
+  codes:DEFAULT_CODES.map(c=>({...c})), planning:{}, souhaits:{}, exemple:false
+};}
+
+/* ====================== DATES ====================== */
+const pad=n=>String(n).padStart(2,"0");
+const nk=s=>String(s??"").toUpperCase().replace(/\s+/g,"");
+const ymd=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+const pY=s=>{const a=s.split("-").map(Number);return {y:a[0],m:a[1]-1,d:a[2]};};
+const idx=s=>{const p=pY(s);return Date.UTC(p.y,p.m,p.d)/864e5;};
+const fromIdx=i=>{const t=new Date(i*864e5);return ymd(t.getUTCFullYear(),t.getUTCMonth(),t.getUTCDate());};
+const dowOf=s=>new Date(idx(s)*864e5).getUTCDay(); // 0 = dimanche
+const dim=(y,m)=>new Date(Date.UTC(y,m+1,0)).getUTCDate();
+const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const plur=(n,a,b)=>`${n} ${n>1?(b||a+"s"):a}`;
+const JOURS=["dim.","lun.","mar.","mer.","jeu.","ven.","sam."];
+const JC=["D","L","M","M","J","V","S"];
+function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return Date.UTC(y,mo-1,da)/864e5;}
+function feries(y){const e=easter(y),f={},U=(m,d)=>Date.UTC(y,m,d)/864e5,a=(i,n)=>{f[fromIdx(i)]=n;};
+  a(U(0,1),"Jour de l'an");a(e+1,"Lundi de Pâques");a(U(4,1),"Fête du Travail");a(U(4,8),"8 mai 1945");a(e+39,"Ascension");a(e+50,"Lundi de Pentecôte");
+  a(U(6,14),"Fête nationale");a(U(7,15),"Assomption");a(U(10,1),"Toussaint");a(U(10,11),"Armistice");a(U(11,25),"Noël");return f;}
+const tmin=t=>{if(!t||!/^\d{1,2}:\d{2}$/.test(t))return null;const [h,m]=t.split(":").map(Number);return h*60+m;};
+const fmtH=h=>{if(h==null||isNaN(h))return "–";const s=h<0?"−":"";h=Math.abs(h);let H=Math.floor(h+1e-9),M=Math.round((h-H)*60);if(M===60){H++;M=0;}return s+H.toLocaleString("fr-FR")+"\u00a0h"+(M?"\u00a0"+pad(M)+"\u00a0min":"");};
+// format court pour les tableaux étroits : 10h55, 175h
+const fmtHc=h=>{if(h==null||isNaN(h))return "–";const s=h<0?"−":"";h=Math.abs(h);let H=Math.floor(h+1e-9),M=Math.round((h-H)*60);if(M===60){H++;M=0;}return s+H+"h"+(M?pad(M):"");};
+// changement d'heure : dernier dimanche de mars (−1 h à 2 h) et d'octobre (+1 h à 3 h)
+const lastSun=(y,m)=>{let i=Date.UTC(y,m+1,0)/864e5;while(new Date(i*864e5).getUTCDay()!==0)i--;return i;};
+function dstDelta(i,startMin,durMin){const s=i*1440+startMin,e=s+durMin;let d=0;const y=new Date(i*864e5).getUTCFullYear();
+  for(const yy of [y,y+1]){const mar=lastSun(yy,2)*1440+120,oct=lastSun(yy,9)*1440+180;if(s<mar&&e>mar)d-=60;if(s<oct&&e>oct)d+=60;}return d;}
+const fmt1=x=>(Math.round(x*10)/10).toLocaleString("fr-FR");
+const pct=(a,b)=>b?Math.round(100*a/b):0;
+
+/* ====================== ÉTAT ====================== */
+const KEY="planning-sf.v1";
+let S=load();
+let calMonth=null, lastClick=null, viewY=null, saveErr=false;
+function load(){try{const raw=localStorage.getItem(KEY);if(raw){return migrate(JSON.parse(raw));}}catch(e){}return defaultState();}
+function migrate(o){const d=defaultState();if(!o||typeof o!=="object")return d;
+  const s={...d,...o,profil:{...d.profil,...(o.profil||{})}};
+  if(!Array.isArray(s.codes)||!s.codes.length||(o.v||1)<2)s.codes=d.codes;
+  if((o.v||1)<2&&o.profil&&+o.profil.cet&&!+s.profil.cetInitial)s.profil.cetInitial=+o.profil.cet*7;
+  {const e=s.codes.find(c=>nk(c.code)==="E");if(e&&e.cat==="activite"&&e.debut==="07:30"){e.cat="jour";e.debut="08:00";e.fin="20:00";e.lib="Garde entrée / urgences";}}
+  s.cetAns=s.cetAns||{};s.equipe=s.equipe||{};s.mods=s.mods||{};s.dettes=s.dettes||[];s.v=2;
+  s.planning=s.planning||{};s.souhaits=s.souhaits||{};return s;}
+let saveT=null;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{const was=saveErr;try{localStorage.setItem(KEY,JSON.stringify(S));saveErr=false;}catch(e){saveErr=true;}
+  if(saveErr&&!was)toast("Enregistrement impossible sur cet appareil (stockage plein ou navigation privée) : sauvegardez en .json");if(saveErr!==was)renderSaveBar();},250);}
+
+/* ====================== CALCULS ====================== */
+function codeMap(){const m={};S.codes.forEach(c=>{if(c.code)m[nk(c.code)]=c;});return m;}
+function shiftDur(def){if(!def||!CATS[def.cat]||!CATS[def.cat].work)return null;const a=tmin(def.debut),b=tmin(def.fin);if(a==null||b==null)return null;let d=b-a;if(d<=0)d+=1440;return Math.max(0,d-(+def.pause||0));}
+// durée réelle d'un poste ce jour-là (changement d'heure compris)
+function realMins(def,i){const m=shiftDur(def);if(m==null)return null;const a=tmin(def.debut);return a==null?m:m+dstDelta(i,a,m+(+def.pause||0));}
+function cetData(y){const o=(S.cetAns||{})[y]||{};return {verse:+o.verse||0,paye:+o.paye||0};}
+function cetOuv(){const o=+S.profil.cetOuverture;if(o)return o;const ys=Object.keys(S.cetAns||{}).filter(y=>cetData(y).verse>0).map(Number);return ys.length?Math.min(...ys):null;}
+function cetPlafondVerse(y){const o=cetOuv();return (o==null||y<=o)?RULES.cet.verse1H:RULES.cet.verseH;}
+function cetPrisH(y){const p=pY(S.profil.debut||"2026-01-01");/* seuls le jour et le mois de début comptent */const a=Date.UTC(y,p.m,p.d)/864e5,b=Date.UTC(y+1,p.m,p.d)/864e5-1;const cm=codeMap();let n=0;
+  Object.entries(S.planning).forEach(([d,v])=>{const i=idx(d);if(i>=a&&i<=b){const def=cm[nk(v)];if(def&&def.cat==="CET")n++;}});return n*(+S.profil.valeurJour||7);}
+function cetSoldeFin(y){let s=+S.profil.cetInitial||0;const ys=Object.keys(S.cetAns||{}).map(Number).filter(x=>x<=y);
+  const first=Math.min(y,...ys,...Object.keys(S.planning).map(d=>+d.slice(0,4)));for(let yy=first;yy<=y;yy++){const c=cetData(yy);s+=c.verse-c.paye-cetPrisH(yy);}return s;}
+function rttFor(base){for(const [h,j] of RULES.rtt){if(base>=h-1e-6)return j;}return 0;}
+function bonusHS(n){return n>=RULES.ca.hs2?RULES.ca.hs2b:n>=RULES.ca.hs1?RULES.ca.hs1b:0;}
+const inSaison=s=>{const m=pY(s).m;return m>=4&&m<=9;};
+
+// année affichée : choisie par la navigation (viewY), sinon celle qui contient aujourd'hui ; la date de début du contrat n'est jamais modifiée
+function curY(){const p=pY(S.profil.debut||"2026-01-01");if(viewY!=null)return viewY;const t=new Date(),tm=t.getMonth(),td=t.getDate();return (tm>p.m||(tm===p.m&&td>=p.d))?t.getFullYear():t.getFullYear()-1;}
+function periodOf(y){const p=pY(S.profil.debut||"2026-01-01");const s0=Date.UTC(y,p.m,p.d)/864e5;const e=Date.UTC(y+1,p.m,p.d)/864e5-1;return {s0,e,y,m:p.m,days:e-s0+1};}
+function period(){return periodOf(curY());}
+function yearOfMonth(y,m){const p=pY(S.profil.debut||"2026-01-01");return m>=p.m?y:y-1;}
+function setViewY(y){viewY=y;calMonth=null;navM=null;}
+
+function modeDec(){return S.profil.decompte||"heures";}
+function todayStr(){const t=new Date();return ymd(t.getFullYear(),t.getMonth(),t.getDate());}
+function effCode(d){const m=(S.mods||{})[d];if(m&&m.type==="cede")return "";return (S.planning[d]||"").trim();}
+// code du planning publié (sans les heures sup ni les gardes reprises ajoutées par l'outil)
+function baseCode(d){const m=(S.mods||{})[d];if(m&&(m.type==="hs"||m.type==="recup"))return m.prev||"";return S.planning[d]||"";}
+// un mois est « publié » quand il contient des jours importés ou saisis, pas seulement une heure sup ou une reprise
+function filledMonthSet(){const s=new Set();Object.keys(S.planning).forEach(d=>{if(baseCode(d))s.add(d.slice(0,7));});return s;}
+// statistiques sur les 12 derniers mois remplis (toutes années confondues) : on raisonne sur plusieurs mois
+function refStats(endIdx){
+  const fm=[...filledMonthSet()].filter(k=>Date.UTC(+k.slice(0,4),+k.slice(5,7)-1,1)/864e5<=endIdx).sort().slice(-12);
+  const cm=codeMap();let days=0,dimFer=0,workH=0,nightH=0,shifts=0;const fc={};
+  fm.forEach(k=>{const y=+k.slice(0,4),m=+k.slice(5,7)-1;const fer=fc[y]||(fc[y]=feries(y));
+    for(let d=1;d<=dim(y,m);d++){const ds=ymd(y,m,d);days++;const c=effCode(ds);const def=c?cm[nk(c)]:null;
+      if(def&&CATS[def.cat]&&CATS[def.cat].work){shifts++;const mins=realMins(def,idx(ds));if(mins!=null){workH+=mins/60;if(def.cat==="nuit")nightH+=mins/60;}if(dowOf(ds)===0||fer[ds])dimFer++;}}});
+  return {months:fm.length,first:fm[0]||null,last:fm[fm.length-1]||null,days,dimFer,workH,nightH,shifts,pNight:workH?nightH/workH:0};
+}
+// 12 derniers mois jusqu'à la garde la plus lointaine du planning
+function rollingRange(){const cm=codeMap();let last=null;Object.keys(S.planning).forEach(d=>{if(isWorkDef(defFor(effCode(d),cm))&&(!last||d>last))last=d;});
+  if(!last)return null;const e=idx(last),s0=e-364,st=pY(fromIdx(s0));return {s0,e,y:st.y,m:st.m,days:365,last};}
+// probabilité de travailler selon le jour de la semaine, d'après les 12 derniers mois
+function dayWeights(){
+  const R=rollingRange(),cm=codeMap(),fm=filledMonthSet();const cnt=[0,0,0,0,0,0,0],wk=[0,0,0,0,0,0,0];let h=0,n=0,days=0;
+  if(R)for(let i=R.s0;i<=R.e;i++){const d=fromIdx(i);if(!fm.has(d.slice(0,7)))continue;const c=effCode(d),def=c?cm[nk(c)]:null;
+    if(def&&CATS[def.cat]&&(CATS[def.cat].ctr||CATS[def.cat].credit))continue; // jours de congé ou d'absence : non représentatifs
+    const wd=dowOf(d);cnt[wd]++;days++;if(isWorkDef(def)){wk[wd]++;const mins=shiftDur(def);if(mins!=null){h+=mins/60;n++;}}}/* durée nominale : sert à estimer une garde future */
+  const hG=+S.profil.dureeGarde||12,avgH=n?h/n:hG,tot=cnt.reduce((a,b)=>a+b,0),totw=wk.reduce((a,b)=>a+b,0);
+  const ok=days>=28,rate=ok&&tot?totw/tot:Math.min(0.6,(1582*((+S.profil.quotite||100)/100)/hG)/365*1.15);
+  return {W:cnt.map((c,i)=>ok&&c>=3?wk[i]/c:rate),avgH,ok,days,rate};
+}
+function compute(mode, extraFree, range){
+  mode=mode||modeDec();
+  const P=S.profil, q=(+P.quotite||100)/100, per=range||period(), cm=codeMap();
+  const vJ=+P.valeurJour||7, hG=+P.dureeGarde||12, vRTT=(+P.base||35)/5;
+  const fer={...feries(per.y),...feries(per.y+1)};
+  const days=[], byDate={}, intervals=[];
+  const filledMonths=new Set();
+  Object.keys(S.planning).forEach(d=>{const i=idx(d);if(i>=per.s0&&i<=per.e&&baseCode(d))filledMonths.add(d.slice(0,7));});
+  let workH=0,nightH=0,nbJour=0,nbNuit=0,nbAct=0,nbNoHours=0,dimFer=0,creditAbs=0,hsH=0;const hsMonth={};
+  const taken={CA:0,RTT:0,FR:0,RC:0,HS:0,CET:0}, takenH={CA:0,RTT:0,FR:0,RC:0,HS:0,CET:0}; let caHorsSaison=0;
+  const takenF={CA:0,RTT:0,FR:0,RC:0,HS:0,CET:0}; // congés pris dans les mois chargés (pour le solde d'heures)
+  const unknownCodes={}; const usage={};
+  for(let i=per.s0;i<=per.e;i++){
+    const d=fromIdx(i), mod=(S.mods||{})[d], ceded=!!(mod&&mod.type==="cede");
+    const raw=(S.planning[d]||"").trim(), up=nk(raw), def=raw?cm[up]:null;
+    const wd=dowOf(d), isFer=!!fer[d], filled=filledMonths.has(d.slice(0,7));
+    const o={d,i,raw,def,wd,isFer,ferName:fer[d]||"",filled,work:false,hours:0,night:false,cat:ceded?"cede":(def?def.cat:(raw?"unknown":"")),mod:mod||null};
+    if(extraFree&&extraFree[d]&&(!raw||ceded||(CATS[o.cat]&&CATS[o.cat].work))){o.simFree=extraFree[d];}
+    if(raw&&!ceded){usage[up]=(usage[up]||0)+1;if(!def)unknownCodes[up]=(unknownCodes[up]||0)+1;}
+    if(!ceded&&def&&CATS[def.cat]&&CATS[def.cat].work&&!o.simFree){
+      o.work=true;o.night=def.cat==="nuit";const mins=shiftDur(def);
+      if(def.cat==="jour")nbJour++;else if(def.cat==="nuit")nbNuit++;else nbAct++;
+      if(mins==null){nbNoHours++;o.noHours=true;}else{o.hours=realMins(def,i)/60;if(o.hours*60!==mins)o.dst=true;workH+=o.hours;if(o.night)nightH+=o.hours;
+        const a=tmin(def.debut);const st=i*1440+a;intervals.push({s:st,e:st+mins+(+def.pause||0),d,code:up,h:o.hours});
+        if(mod&&mod.type==="hs"){hsH+=o.hours;hsMonth[d.slice(0,7)]=(hsMonth[d.slice(0,7)]||0)+o.hours;}}
+      if(wd===0||isFer)dimFer++;
+    } else if(!ceded&&def&&CATS[def.cat]&&CATS[def.cat].credit){creditAbs+=(def.credit!=null&&def.credit!==""?+def.credit:vRTT*q);}
+    else if(!ceded&&def&&CATS[def.cat]&&CATS[def.cat].ctr&&!o.simFree){const k=CATS[def.cat].ctr;taken[k]++;takenH[k]+=(k==="CET"?vJ:hG);if(filled)takenF[k]++;if(def.cat==="CA"&&!inSaison(d))caHorsSaison++;}
+    if(o.simFree){const k=o.simFree.k,h=o.simFree.h;taken[k]=(taken[k]||0)+1;takenH[k]=(takenH[k]||0)+h;if(filled)takenF[k]=(takenF[k]||0)+1;if(k==="CA"&&!inSaison(d))caHorsSaison++;}
+    days.push(o);byDate[d]=o;
+  }
+  const nFill=filledMonths.size;
+  const filledDays=days.filter(x=>x.filled).length;
+  const frac=filledDays/per.days, proj=filledDays?per.days/filledDays:0;
+  const ref=refStats(per.e);
+  const estim=nFill<12;
+  const pNightCur=workH?nightH/workH:0;
+  const pNight=nFill>=6?pNightCur:(ref.workH?ref.pNight:pNightCur);
+  const dimFerProj=nFill>=12?dimFer:(ref.days?Math.round(ref.dimFer/ref.days*per.days):0);
+  // présence (arrivée / fin de CDD)
+  let pres=1;{let a=per.s0,b=per.e;if(P.entree){const i=idx(P.entree);if(i>a&&i<=b)a=i;}if(P.statut==="CDD"&&P.finCDD){const i=idx(P.finCDD);if(i>=per.s0&&i<b)b=i;}pres=Math.max(0,(b-a+1)/per.days);}
+  // régime
+  let regime=P.regime;
+  if(regime==="auto")regime=!ref.days?"variable":pNight>=RULES.oat.partNuitExclusive?"nuit":(dimFerProj>=RULES.oat.seuilVariable?"variable":"fixe");
+  const baseHr=RULES.oat[regime];
+  let oatBrut=baseHr;
+  if(regime!=="nuit"&&pNight>0)oatBrut=baseHr-pNight*(baseHr-RULES.oat.nuit);
+  // droits
+  const hsBonus=bonusHS(caHorsSaison);
+  let fracPeriods=0;{let st=null,last=null;const close=()=>{if(st==null)return;let n=0;for(let i=st;i<=last;i++){const d=fromIdx(i),w=dowOf(d);if(w>0&&w<6&&!fer[d])n++;}if(n>=RULES.ca.frac.min)fracPeriods++;st=null;};
+    days.forEach(o=>{const isCA=(o.def&&o.def.cat==="CA"&&!o.simFree&&o.cat!=="cede")||(o.simFree&&o.simFree.k==="CA");if(isCA){if(st!=null&&o.i-last>4)close();if(st==null)st=o.i;last=o.i;}else if(o.work)close();});close();}
+  const fracBonus=fracPeriods>=RULES.ca.frac.periodes?RULES.ca.frac.bonus:0;
+  const rcDroit=dimFerProj>=RULES.rc.seuil?RULES.rc.jours:0;
+  const ferList=Object.keys(fer).filter(d=>{const i=idx(d);return i>=per.s0&&i<=per.e&&dowOf(d)!==0;});
+  const nbFer=ferList.length;
+  const frManual=(P.frManuel!=null&&P.frManuel!=="");
+  const frDroitJ=frManual?+P.frManuel:(regime==="fixe"?0:nbFer);
+  const frDroitH=frManual?+P.frManuel*vJ:(regime==="fixe"?0:ferList.reduce((a,d)=>{const o=byDate[d];return a+(o&&o.work&&o.hours?o.hours:vJ*q);},0));
+  const baseUnset=!P.base;
+  const nbRtt=rttFor(+P.base||35);
+  const maladieJ=days.filter(o=>o.def&&o.def.cat==="maladie"&&o.cat!=="cede").length;
+  const rttPerte=nbRtt?Math.floor(maladieJ/(RULES.joursTravaillesAn/nbRtt)):0;
+  const caJ=RULES.ca.jours*q*pres, rttJ=Math.max(0,nbRtt*q*pres-rttPerte);
+  const oatAuto=oatBrut*q*pres-(hsBonus+fracBonus+rcDroit)*vJ;
+  const oat=(P.oatManuelle!=null&&P.oatManuelle!=="")?+P.oatManuelle:oatAuto;
+  const u=mode==="heures"?"h":"j";
+  const conv=(j,v)=>mode==="heures"?j*v:j;
+  const ctr={
+    CA:{l:"Congés annuels",droit:conv(caJ+hsBonus+fracBonus+(+P.reliquatCA||0),vRTT),pris:0},
+    RTT:{l:"RTT",droit:conv(rttJ+(+P.reliquatRTT||0),vRTT),pris:0},
+    FR:{l:"Fériés à récup.",droit:mode==="heures"?frDroitH:frDroitJ,pris:0},
+    RC:{l:"Repos comp.",droit:conv(rcDroit,vJ),pris:0},
+    CET:{l:"CET",droit:cetSoldeFin(per.y-1)+cetData(per.y).verse-cetData(per.y).paye,pris:takenH.CET,unit:"h"}
+  };
+  ["CA","RTT","FR","RC"].forEach(k=>{ctr[k].pris=mode==="heures"?takenH[k]:taken[k];ctr[k].unit=u;});
+  // solde horaire : l'obligation et les droits à congés sont répartis sur les mois chargés ;
+  // chaque congé pris dans ces mois est remis au crédit à sa valeur (12 h par garde en heures, 1 jour en jours).
+  // Ainsi des mois sans congés ne gonflent pas le solde, et des mois de vacances ne le creusent pas.
+  const capH=k=>mode==="heures"?(k==="CET"?vJ:hG):(k==="RTT"?hG:(k==="CET"?vJ:hG));
+  const leaveDroitH=mode==="heures"?(ctr.CA.droit+ctr.RTT.droit+ctr.FR.droit+ctr.RC.droit):(ctr.CA.droit*vJ+ctr.RTT.droit*vRTT+ctr.FR.droit*vJ+ctr.RC.droit*vJ);
+  const takenCapF=mode==="heures"?["CA","RTT","FR","RC","CET"].reduce((a,k)=>a+(takenF[k]||0)*capH(k),0)
+    :(((takenF.CA||0)+(takenF.FR||0)+(takenF.RC||0))*vJ+(takenF.RTT||0)*vRTT+(takenF.CET||0)*vJ);
+  const bonusCredit=mode==="jours"?(((takenF.CA||0)+(takenF.FR||0)+(takenF.RC||0))*(hG-vJ)+(takenF.RTT||0)*(hG-vRTT)):0;
+  const credit=workH+creditAbs+bonusCredit+takenCapF;
+  const due=(oat+leaveDroitH)*frac;
+  const solde=credit-due+(+P.reliquatHS||0);
+  // projection seulement à partir de 6 mois chargés : l'écart constaté est prolongé sur l'année
+  const soldeProj=nFill>=6&&filledDays?(credit-due)*proj+(+P.reliquatHS||0):null;
+  ctr.HS={l:"Heures sup",droit:Math.max(0,solde),pris:0,unit:"h"};
+  return {mode,q,per,fer,days,byDate,intervals:intervals.sort((a,b)=>a.s-b.s),filledMonths,nFill,filledDays,frac,proj,ref,estim,workH,nightH,pNight,nbJour,nbNuit,nbAct,nbNoHours,
+    dimFer,dimFerProj,fracBonus,fracPeriods,rttPerte,maladieJ,nbRtt,baseUnset,regime,baseH:baseHr,oatBrut,oat,oatAuto,hsBonus,caHorsSaison,rcDroit,nbFer,ctr,taken,takenH,takenF,credit,due,solde,soldeProj,vJ,hG,vRTT,unknownCodes,usage,pres,creditAbs,bonusCredit,hsH,hsMonth,leaveDroitH,takenCapF,pNightCur};
+}
+
+/* ====================== OPTIMISEUR ====================== */
+function optimize(mode){
+  const C0=compute(mode);
+  const P=S.profil, avant=true;
+  Object.keys(S.souhaits).forEach(d=>{if(isLocked(d))delete S.souhaits[d];});
+  const wishes=Object.keys(S.souhaits).filter(d=>S.souhaits[d]).sort();
+  const res={wishes,avant,items:[],alloc:{},est:0,estAlloc:{},notes:[],uncovered:0,gain:0,periods:[]};
+  if(!wishes.length){res.C=C0;res.C0=C0;return res;}
+  const hG=C0.hG, hJ=(+P.base||35)/5;
+  const rem={};Object.keys(C0.ctr).forEach(k=>rem[k]=C0.ctr[k].droit-C0.ctr[k].pris);
+  const cost=(k,h)=>((k==="HS"||k==="CET")?h:(mode==="heures"?h:1));
+  const ouvre=o=>o.wd!==0&&o.wd!==6&&!o.isFer;
+  const toPose=[];let unknown=0;
+  const outDay=d=>({d,wd:dowOf(d),isFer:!!feries(pY(d).y)[d]});
+  const DW=avant?dayWeights():null;res.dw=DW;
+  if(avant){
+    // groupes de jours consécutifs ; dans chaque groupe, nombre de gardes attendu d'après les 12 derniers mois
+    let g=null;const groups=[];wishes.forEach(d=>{if(g&&idx(d)===idx(g[g.length-1])+1)g.push(d);else{g=[d];groups.push(g);}});
+    groups.forEach(gr=>{const its=gr.map(d=>{const out=!C0.byDate[d],o=C0.byDate[d]||outDay(d);return {d,st:"prob",w:DW.W[o.wd],h:DW.avgH,out};});
+      const E=its.reduce((a,x)=>a+x.w,0),N=Math.round(E);
+      its.slice().sort((a,b)=>b.w-a.w||(a.d<b.d?-1:1)).slice(0,N).forEach(x=>{x.st="pose";if(x.out){x.next=true;x.k="CA";}else toPose.push({d:x.d,h:x.h});});
+      its.forEach(x=>res.items.push(x));res.expect=(res.expect||0)+E;});
+  }
+  wishes.forEach(d=>{if(avant)return;const out=!C0.byDate[d];const o=C0.byDate[d]||outDay(d);
+    if(out){res.items.push({d,st:"hors"});}
+    else if(o.work){toPose.push({d,h:o.hours||hG});res.items.push({d,st:"pose",code:o.raw,h:o.hours||hG});}
+    else if(o.raw){res.items.push({d,st:"libre",code:o.raw});}
+    else if(o.filled){res.items.push({d,st:"libre",code:"repos"});}
+    else {unknown++;res.items.push({d,st:"inconnu"});}});
+  // ordre : ce qui se perd d'abord, CET en dernier
+  // les repos compensateurs sont placés par le cadre dans le cycle : on ne les pose pas soi-même
+  const order=["FR","RTT"].concat(P.hsMode==="recup"?["HS"]:[]).concat(["CA","CET"]);
+  const assign={};
+  // une seule catégorie de compteur par période quand c'est possible (plus simple à demander et à suivre)
+  const curHS=C0.caHorsSaison;
+  // regrouper aussi les jours d'une même période de souhaits (séparés par des jours probablement en repos)
+  const per2=[];{let g=null;wishes.forEach(d=>{if(g&&idx(d)===idx(g[g.length-1])+1)g.push(d);else{g=[d];per2.push(g);}});}
+  const byPer=per2.map(ds=>toPose.filter(o=>ds.includes(o.d))).filter(g=>g.length);
+  let hsAdd=0;
+  byPer.forEach(g=>{
+    const hs=g.every(o=>!inSaison(o.d));const gainCA=hs&&bonusHS(curHS+hsAdd+g.length)>bonusHS(curHS+hsAdd);
+    const cand=(gainCA?["CA"]:[]).concat(order.filter(k=>!(gainCA&&k==="CA")));
+    const need=k=>g.reduce((a,o)=>a+cost(k,o.h),0);
+    const k=cand.find(k=>rem[k]!=null&&rem[k]>=need(k)-1e-9);
+    if(k){rem[k]-=need(k);g.forEach(o=>assign[o.d]=k);if(k==="CA"&&hs)hsAdd+=g.length;return;}
+    // sinon : on complète compteur par compteur, en gardant l'ordre
+    g.forEach(o=>{for(const kk of cand){const c=cost(kk,o.h);if(rem[kk]!=null&&rem[kk]>=c-1e-9){rem[kk]-=c;assign[o.d]=kk;if(kk==="CA"&&!inSaison(o.d))hsAdd++;return;}}assign[o.d]="?";res.uncovered++;});
+    res.mixed=true;
+  });
+  res.gain=bonusHS(curHS+hsAdd)-bonusHS(curHS);
+  res.items.forEach(it=>{if(it.st==="pose"&&!it.next){it.k=assign[it.d];if(it.k!=="?")res.alloc[it.k]=(res.alloc[it.k]||0)+1;}});
+  res.nNext=res.items.filter(it=>it.next).length;
+  // 3) après planning, jours de mois sans planning : estimation
+  if(unknown){
+    const rate=C0.filledDays?(C0.nbJour+C0.nbNuit+C0.nbAct)/C0.filledDays:(C0.oat/hG)/365;
+    res.est=Math.round(unknown*rate);res.rate=rate;
+    for(let n=0;n<res.est;n++){for(const k of order){const c=cost(k,hG);if(rem[k]>=c-1e-9){rem[k]-=c;res.estAlloc[k]=(res.estAlloc[k]||0)+1;break;}}}
+  }
+  res.rem=rem;
+  // périodes continues
+  let cur=null;wishes.forEach(d=>{if(cur&&idx(d)===idx(cur.b)+1){cur.b=d;cur.ds.push(d);}else{cur={a:d,b:d,ds:[d]};res.periods.push(cur);}});
+  res.periods.forEach(p=>{p.items=res.items.filter(it=>p.ds.includes(it.d));p.nPose=p.items.filter(i=>i.st==="pose").length;p.nCA=p.items.filter(i=>i.k==="CA").length;});
+  // simulation : recalcul complet avec les jours posés
+  const free={};res.items.forEach(it=>{if(it.st==="pose"&&!it.next&&it.k&&it.k!=="?")free[it.d]={k:it.k,h:it.h};});
+  res.C=compute(mode,free);res.C0=C0;
+  // conseils
+  const U=avant?"jour":"garde";const pl=n=>n>1?"s":"";
+  const dHS=res.C.caHorsSaison;
+  if(res.gain>0)res.notes.push({t:"ok",m:`Les CA posés du 1er novembre au 30 avril vous font gagner ${res.gain} jour${pl(res.gain)} hors saison.`});
+  if(dHS===RULES.ca.hs1-1||dHS===RULES.ca.hs2-1)res.notes.push({t:"warn",m:`Encore 1 CA posé entre le 1er novembre et le 30 avril et vous gagnez 1 jour de congé supplémentaire.`});
+  if(C0.dimFerProj>=RULES.rc.seuil&&res.C.dimFerProj<RULES.rc.seuil)res.notes.push({t:"bad",m:`Avec ces congés vous passez sous ${RULES.rc.seuil} dimanches/fériés travaillés : vous perdez les ${RULES.rc.jours} repos compensateurs.`});
+  if(C0.dimFerProj>=RULES.oat.seuilVariable&&res.C.dimFerProj<RULES.oat.seuilVariable)res.notes.push({t:"bad",m:`Vous passeriez sous ${RULES.oat.seuilVariable} dimanches/fériés : perte du régime repos variable (1 582 h).`});
+  if(res.nNext)res.notes.push({t:"warn",m:`${res.nNext} jour${res.nNext>1?"s":""} ouvré${res.nNext>1?"s":""} hors de l'année affichée : décompté${res.nNext>1?"s":""} sur les droits de l'autre année (CA par défaut).`});
+  if(res.items.some(i=>i.st==="hors"))res.notes.push({t:"warn",m:"Certains jours sont hors de l'année affichée : changez d'année pour les calculer."});
+  if(res.mixed)res.notes.push({t:"info",m:"Un seul compteur ne suffit pas pour toute la période : plusieurs sont utilisés. C'est autorisé : congés annuels, RTT et récupérations peuvent se suivre sur une même absence (31 jours de congés annuels d'affilée au maximum)."});
+  if(res.uncovered)res.notes.push({t:"bad",m:`${res.uncovered} ${U}${pl(res.uncovered)} sans compteur suffisant : à retirer ou à négocier.`});
+  if(avant){
+    const pct=x=>Math.round(x*100);
+    res.periods.forEach(p=>{const E=p.items.reduce((a,x)=>a+(x.w||0),0);
+      res.notes.push({t:"ok",m:`${p.a===p.b?dl(p.a):"Du "+dl(p.a)+" au "+dl(p.b)} : ${p.ds.length} jour${p.ds.length>1?"s":""} d'absence, ${p.nPose?`${p.nPose} jour${p.nPose>1?"s":""} à poser d'après vos plannings précédents`:"probablement aucun jour à poser"}.`});
+      // jours voisins où vous travaillez rarement
+      let a=idx(p.a),b=idx(p.b);const low=i=>{const d=fromIdx(i);return !S.souhaits[d]&&DW.W[dowOf(d)]<0.15;};let add=0;
+      while(low(a-1)&&add<4){a--;add++;}while(low(b+1)&&add<8){b++;add++;}
+      if(add)res.notes.push({t:"warn",m:`Vous travaillez rarement le ${(()=>{const s2=new Set();for(let i=a;i<idx(p.a);i++)s2.add(JOURS[dowOf(fromIdx(i))]);for(let i=idx(p.b)+1;i<=b;i++)s2.add(JOURS[dowOf(fromIdx(i))]);return [...s2].join(", ");})()} : demander du ${dl(fromIdx(a))} au ${dl(fromIdx(b))} ne coûterait presque rien de plus.`});});
+    const ferIn=res.items.filter(x=>{const yy=pY(x.d).y;return feries(yy)[x.d];});
+    if(ferIn.length)res.notes.push({t:"warn",m:`${ferIn.map(x=>dl(x.d)+" ("+feries(pY(x.d).y)[x.d]+")").join(", ")} : férié compris dans la période : il n'est pas décompté comme jour de congé annuel et, en repos variable, il ouvre droit à une récupération (7 h s'il tombe sur un repos). À confirmer avec le cadre.`});
+    if(!DW.ok)res.notes.push({t:"warn",m:"Pas encore assez de planning (4 semaines minimum) : l'estimation suppose une garde tous les 3 jours environ."});
+    else res.notes.push({t:"info",m:"Le nombre exact de jours décomptés dépendra des gardes que le cadre prévoit sur la période."});
+  } else {
+    const free0=res.items.filter(i=>i.st==="libre").length;
+    if(toPose.length&&free0)res.notes.push({t:"ok",m:`${free0} des jours choisis sont déjà des repos : ils ne coûtent rien. Seules les ${toPose.length} gardes sont à poser.`});
+  }
+  // fenêtre moins chère (une seule plage continue)
+  const i0=idx(wishes[0]),i1=idx(wishes[wishes.length-1]);
+  if(res.periods.length===1&&wishes.length>=3&&!unknown){
+    let best=null;
+    for(let s=-3;s<=3;s++){if(!s)continue;let ok=true,n=0;
+      for(let i=i0+s;i<=i1+s;i++){const o=C0.byDate[fromIdx(i)];if(!o||(!avant&&!o.filled)){ok=false;break;}n+=avant?DW.W[o.wd]:(o.work?1:0);}
+      if(avant)n=Math.round(n);
+      if(ok&&n<toPose.length&&(!best||n<best.n))best={s,n};}
+    if(best){const a=fromIdx(i0+best.s),b=fromIdx(i1+best.s);res.notes.push({t:"warn",m:`Décaler de ${Math.abs(best.s)} jour${pl(Math.abs(best.s))} (${dl(a)} → ${dl(b)}) ne coûterait ${best.n?"que "+best.n+" "+U+pl(best.n):"rien"} au lieu de ${toPose.length}.`});}
+  }
+  const longP=res.periods.find(p=>idx(p.b)-idx(p.a)+1>RULES.ca.maxAbsence&&p.nCA);
+  if(longP)res.notes.push({t:"warn",m:`Période de plus de ${RULES.ca.maxAbsence} jours : l'absence au titre des CA est en principe limitée à ${RULES.ca.maxAbsence} jours consécutifs.`});
+
+  return res;
+}
+const dl=d=>{const p=pY(d);return `${JOURS[dowOf(d)]} ${p.d} ${MOIS[p.m]}`;};
+
+/* ====================== AUDIT ====================== */
+function audit(C){
+  const A=[];const V=` · vérifié le ${RULES.verif}`;const add=(sev,t,d,src)=>A.push({sev,t,d,src:src&&/Décret|Loi|Circulaire|Instruction/.test(src)?src+V:src});
+  const iv=C.intervals;
+  if(!C.filledDays){add("info","Planning vide","Importez votre planning dans l'onglet Planning pour lancer l'audit.","");return A;}
+  if(!S.profil.decompte)add("warn","Décompte des congés à confirmer","Selon l'hôpital, un congé posé sur une garde compte 1 jour ou les heures de la garde. En attendant, l'outil calcule en heures (le plus prudent). Réglez-le dans « Réglages › Mon contrat ».","Protocole local");
+  if(C.baseUnset&&C.taken.RTT>0)add("warn","Base horaire à renseigner",`Vous avez posé ${C.taken.RTT} RTT mais la base hebdomadaire n'est pas choisie : le solde de RTT ne peut pas être calculé.`,"");
+  const unk=Object.keys(C.unknownCodes);
+  if(unk.length)add("bad","Codes inconnus",`${unk.join(", ")} : à ajouter dans « Réglages › Codes du planning », sinon ces jours ne sont pas comptés.`,"");
+  if(C.nbNoHours)add("warn","Gardes sans horaires",`${plur(C.nbNoHours,"jour")} de travail sans horaires : les heures ne sont pas comptées. Complétez les lignes orange dans « Réglages › Codes du planning ».`,"");
+  // repos quotidien
+  const daily=[];for(let k=1;k<iv.length;k++){const g=iv[k].s-iv[k-1].e;if(g<RULES.repos.quotidien*60)daily.push({d:iv[k].d,g});}
+  if(daily.length)add("warn",`Repos de moins de ${RULES.repos.quotidien} h entre deux postes : ${daily.length} fois`,daily.slice(0,8).map(x=>`${dl(x.d)} (${fmtH(Math.max(0,x.g)/60)})`).join(" · ")+(daily.length>8?" …":""),"Décret 2002-9, art. 6");
+  // durée de poste
+  const longs=iv.filter(x=>x.h>RULES.repos.maxPoste);
+  if(longs.length)add("warn",`Postes de plus de ${RULES.repos.maxPoste} h`,longs.slice(0,6).map(x=>`${dl(x.d)} ${x.code} ${fmtH(x.h)}`).join(" · "),"Décret 2002-9, art. 7");
+  // repos hebdo 36 h (par semaine civile)
+  const w36=weekly36(C);
+  if(w36.bad.length)add("warn",`Repos hebdomadaire de ${RULES.repos.hebdo} h non respecté : ${plur(w36.bad.length,"semaine")} sur ${w36.n}`,w36.bad.slice(0,6).map(x=>`semaine du ${dl(x)}`).join(" · "),"Décret 2002-9, art. 6");
+  else if(w36.n)add("ok",`Repos de ${RULES.repos.hebdo} h respecté`,`${plur(w36.n,"semaine complète","semaines complètes")} contrôlée${w36.n>1?"s":""}.`,"Décret 2002-9, art. 6");
+  // quinzaine
+  const qz=quinzaines(C);
+  if(qz.bad.length)add("warn","Quinzaines à vérifier (dans les deux découpages possibles)",qz.bad.slice(0,6).map(x=>`${dl(x.d)} : ${x.why}`).join(" · "),"Décret 2002-9, art. 6");
+  // 48 h / 7 j
+  const w48=max7(C);
+  if(w48.bad.length)add("warn",`Plus de ${RULES.repos.max7j} h sur 7 jours : ${plur(w48.bad.length,"période")}`,`Maximum relevé : ${fmtH(w48.max)} à partir du ${dl(w48.maxD)}.`,"Décret 2002-9, art. 6");
+  // 44 h par semaine civile (hors heures sup)
+  const w44=week44(C);
+  if(w44.length)add("warn",`${plur(w44.length,"semaine")} de plus de ${RULES.repos.maxSemaine} h`,w44.slice(0,6).map(x=>`semaine du ${dl(x.d)} : ${fmtH(x.h)}`).join(" · ")+(w44.length>6?" …":"")+`. Au-delà de ${RULES.repos.maxSemaine} h dans la semaine, les heures en plus doivent être des heures sup (48 h au maximum).`,"Décret 2002-9, art. 9 ; instruction DGOS/RH3/2015/3");
+  // enchaînements
+  const runs=workRuns(C);const longRun=runs.filter(r=>r.n>RULES.repos.enchainement);
+  if(longRun.length)add("warn",`Plus de ${RULES.repos.enchainement} gardes d'affilée`,longRun.slice(0,6).map(r=>`${r.n} à partir du ${dl(r.start)}`).join(" · "),"Instruction DGOS/RH3/2015/3");
+  // heures
+  const s=C.solde;
+  if(Math.abs(s)>=C.hG/2){
+    if(s>0)add(S.profil.hsMode==="paye"?"info":"warn",`Environ ${fmtH(s)} faites en plus (à date)`,(S.profil.hsMode==="paye"?"Demandez au cadre le paiement des heures sup ou leur inscription au compteur.":"Vous pouvez demander à les récupérer : elles sont utilisées dans la proposition de l'onglet Congés.")+` Calculé sur ${plur(C.nFill,"mois","mois")} chargé${C.nFill>1?"s":""}.`,"Estimation, à confirmer auprès du cadre ou de la DRH");
+    else add("warn",`Environ ${fmtH(-s)} de retard sur l'obligation (à date)`,`Calculé sur ${plur(C.nFill,"mois","mois")} chargé${C.nFill>1?"s":""}. Demandez votre compteur au cadre pour comparer.`,"Estimation, à confirmer auprès du cadre ou de la DRH");
+  }
+  if(C.soldeProj!=null&&C.soldeProj>RULES.hs.contingentAn)add("warn",`Estimation : environ ${fmtH(C.soldeProj)} d'heures sup sur l'année`,`Calculé sur ${plur(C.nFill,"mois","mois")} chargé${C.nFill>1?"s":""}. Le contingent est de ${RULES.hs.contingentAn} h par an (${RULES.hs.contingentMois} h par mois).`,"Décret 2002-9, art. 15");
+  {const over=Object.entries(C.hsMonth).filter(([m,h])=>h>RULES.hs.contingentMois);
+   if(over.length)add("warn","Gardes en heures sup au-delà de 20 h dans le mois",over.map(([m,h])=>`${MOIS[+m.slice(5)-1]} ${m.slice(0,4)} : ${fmtH(h)}`).join(" · ")+". Au-delà, une dérogation est nécessaire.","Décret 2002-9, art. 15");
+   if(C.hsH>RULES.hs.contingentAn)add("warn","Heures sup au-delà de 240 h sur l'année",`${fmtH(C.hsH)} de gardes en heures sup.`,"Décret 2002-9, art. 15");}
+  (S.dettes||[]).filter(x=>!x.rendue).forEach(x=>add("info",x.sens==="je_dois"?`Vous devez une garde à ${x.nom}`:`${x.nom} vous doit une garde`,`Garde ${x.code||""} du ${dl(x.date)}.`,""));
+  // dimanches / fériés
+  const est=C.estim?` (estimation sur ${C.ref.months} mois)`:"";
+  if(C.dimFerProj>=RULES.rc.seuil-3&&C.dimFerProj<RULES.rc.seuil)add("info",`${C.dimFerProj} dimanches/fériés sur l'année${est}`,`À ${RULES.rc.seuil}, vous gagnez ${RULES.rc.jours} jours de repos compensateurs.`,"Décret 2002-9, art. 3");
+  if(C.dimFerProj>=RULES.rc.seuil)add(C.estim?"info":"ok",`${C.dimFerProj} dimanches/fériés sur l'année${est}`,`Vous avez droit à ${RULES.rc.jours} repos compensateurs : vérifiez qu'ils figurent à votre compteur.`,"Décret 2002-9, art. 3");
+  // CA / CET
+  const ca=C.ctr.CA, restCA=ca.droit-ca.pris;
+  const caJ=C.mode==="heures"?C.taken.CA:ca.pris;
+  const today=new Date();const ti=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate())/864e5;
+  const left=C.per.e-ti;
+  if(restCA>0&&left<120&&left>0)add("warn",`${fmt1(restCA)} ${ca.unit} de CA restants à ${left} jours de la fin de période`,"Il n'y a pas de report de droit, sauf autorisation du chef d'établissement ou absence pour maladie (report de 15 mois). Posez-les ou demandez le CET.","Décret 2002-8, art. 4");
+  const anc=+S.profil.anciennete||0;
+  if(S.profil.statut==="Stagiaire")add("info","CET impossible pendant le stage","Les fonctionnaires stagiaires ne peuvent pas ouvrir de CET : posez vos CA et RTT dans l'année.","Décret 2002-788");
+  else if(anc>=RULES.cet.ancienneteAns){
+    if(caJ>=RULES.cet.minCA&&restCA>0)add("info","CET possible pour les CA restants",`Vous avez pris au moins ${RULES.cet.minCA} jours : les CA restants peuvent aller sur le CET (plafond ${RULES.cet.plafond} jours, 10 jours par an au-delà de 15). Au-delà de 15 jours épargnés : paiement 150 €/jour (catégorie A) possible, choix avant le 1er avril.`,"Décret 2002-788");
+    else if(restCA>0)add("info","CET : condition des 20 jours",`Seuls les CA au-delà de ${RULES.cet.minCA} jours pris dans l'année peuvent alimenter le CET. Les RTT et les heures sup ni récupérées ni payées peuvent y aller.`,"Décret 2002-788");
+  } else add("info","CET pas encore ouvert",`Il faut ${RULES.cet.ancienneteAns} an de service continu.`,"Décret 2002-788");
+  {const y=C.per.y,c=cetData(y),pl=cetPlafondVerse(y),sol=cetSoldeFin(y);
+   if(c.verse>pl)add("warn","Versement CET au-dessus du plafond",`${fmtH(c.verse)} versées pour ${fmtH(pl)} autorisées cette année (${fmtH(RULES.cet.verse1H)} la 1re année, ${fmtH(RULES.cet.verseH)} ensuite).`,"Règle du service ; décret 2002-788");
+   if(c.paye>RULES.cet.payeMaxH)add("warn","Paiement CET au-dessus du plafond",`${fmtH(c.paye)} demandées pour ${fmtH(RULES.cet.payeMaxH)} maximum par an.`,"Règle du service");
+   if(sol<-1e-6)add("bad","Solde CET négatif",`Il manque ${fmtH(-sol)} : vérifiez les versements et les jours de CET posés.`,"");
+   if(sol>RULES.cet.plafondH)add("bad","CET au-dessus de 60 jours",`${fmtH(sol)} pour ${fmtH(RULES.cet.plafondH)} maximum (60 × 7 h).`,"Décret 2002-788");
+   if(c.verse>0&&C.taken.CA<RULES.cet.minCA&&[...C.filledMonths].length>=12)add("warn","Versement CET sans 20 CA pris",`Seuls les CA au-delà de ${RULES.cet.minCA} jours pris dans l'année peuvent aller sur le CET.`,"Décret 2002-788");}
+  if(C.maladieJ)add("info",`${plur(C.maladieJ,"jour")} de maladie`,`Chaque jour d'absence justifiée compte 7 h, même sur une garde de 12 h : les 5 h restantes peuvent être replanifiées. 1 jour de carence par arrêt (pas pour une prolongation).${C.rttPerte?` Perte de ${C.rttPerte} RTT.`:""}`,"Décret 2002-9, art. 14 ; loi 2025-127");
+  if(C.fracBonus)add("ok","Jour de fractionnement acquis",`${C.fracPeriods} périodes de CA d'au moins 5 jours ouvrés.`,"Décret 2002-8, art. 1");
+  else if(C.fracPeriods===2)add("info","Jour de fractionnement à portée","Une 3e période de CA d'au moins 5 jours ouvrés donne 1 jour de plus.","Décret 2002-8, art. 1");
+  if(C.hsBonus===0&&C.caHorsSaison>0)add("info","Jours hors saison",`${C.caHorsSaison} CA hors saison posés : dès ${RULES.ca.hs1} vous gagnez 1 jour, dès ${RULES.ca.hs2} deux jours.`,"Décret 2002-8, art. 1");
+  add("info","Planning : 15 jours de délai","Le tableau de service doit être communiqué au moins 15 jours avant, et toute modification notifiée 48 h avant, sauf urgence.","Décret 2002-9, art. 13");
+  if(S.profil.statut==="CDD")add("info","CDD","Les CA non pris à la fin du contrat sont en principe indemnisés : demandez le décompte avant la fin.","Décret 91-155");
+  {const dstD=C.days.filter(o=>o.dst);if(dstD.length)add("info","Changement d'heure",dstD.map(o=>`${dl(o.d)} ${o.raw} : ${fmtH(o.hours)}`).join(" · ")+" (durée réelle du poste).","Méthode de l'outil");}
+  const missing=12-[...C.filledMonths].length;
+  if(missing>0)add("info",`${plur(missing,"mois","mois")} sans planning dans l'année affichée`,`Les estimations sur l'année (nuits, dimanches) s'appuient sur ${C.ref.months>1?"vos "+C.ref.months+" derniers mois":"votre seul mois"} de planning${C.ref.first?` (${C.ref.first===C.ref.last?MOIS[+C.ref.first.slice(5)-1]+" "+C.ref.first.slice(0,4):"de "+MOIS[+C.ref.first.slice(5)-1]+" "+C.ref.first.slice(0,4)+" à "+MOIS[+C.ref.last.slice(5)-1]+" "+C.ref.last.slice(0,4)})`:""}. ${C.nFill<6?`Pas de projection d'heures sup avant 6 mois chargés dans l'année affichée (${C.nFill} pour l'instant).`:""}${C.ref.months<3?" Avec si peu de mois, ces estimations sont peu fiables.":""}`,"");
+  return A;
+}
+function week44(C){const out=[];for(let i=C.per.s0;i<=C.per.e-6;i++){if(dowOf(fromIdx(i))!==1)continue;let full=true;for(let j=0;j<7;j++){const o=C.byDate[fromIdx(i+j)];if(!okDay(o)){full=false;break;}}if(!full)continue;let h=0;for(let j=0;j<7;j++)h+=C.byDate[fromIdx(i+j)].hours||0;if(h>RULES.repos.maxSemaine+1e-6)out.push({d:fromIdx(i),h});}return out;}
+function nightHours2106(C){let t=0;C.intervals.forEach(x=>{const d0=Math.floor(x.s/1440);for(let d=d0-1;d<=d0+1;d++){const a=d*1440+21*60,b=a+9*60;const ov=Math.min(x.e,b)-Math.max(x.s,a);if(ov>0)t+=ov;}});return t/60;}
+function okDay(o){return !!(o&&o.filled&&o.cat!=="unknown"&&!o.noHours);}
+function mergeIv(C){const out=[];C.intervals.forEach(x=>{if(out.length&&x.s<=out[out.length-1].e)out[out.length-1].e=Math.max(out[out.length-1].e,x.e);else out.push({s:x.s,e:x.e});});return out;}
+function weekly36(C){
+  const m=mergeIv(C),need=RULES.repos.hebdo*60,bad=[];let n=0;
+  // créneaux libres
+  const gaps=[];let prev=C.per.s0*1440-10*1440;
+  m.forEach(x=>{gaps.push({s:prev,e:x.s});prev=x.e;});gaps.push({s:prev,e:(C.per.e+10)*1440});
+  for(let i=C.per.s0;i<=C.per.e-6;i++){
+    if(dowOf(fromIdx(i))!==1)continue;
+    let full=true;for(let j=0;j<7;j++){const o=C.byDate[fromIdx(i+j)];if(!okDay(o)){full=false;break;}}
+    if(!full)continue;n++;
+    const ws=i*1440,we=(i+7)*1440;
+    const ok=gaps.some(g=>{const inside=Math.min(g.e,we)-Math.max(g.s,ws);const startsIn=g.s>=ws&&g.s<we;return inside>=need||(startsIn&&g.e-g.s>=need);});
+    if(!ok)bad.push(fromIdx(i));
+  }
+  return {bad,n};
+}
+function restDay(C,i){const s=i*1440,e=s+1440;return !C.intervals.some(x=>x.s<e&&x.e>s);}
+function quinzaines(C){
+  const run=off=>{const bad=[];let first=C.per.s0;while(dowOf(fromIdx(first))!==1)first++;first+=off;
+    for(let i=first;i+13<=C.per.e;i+=14){
+      let full=true;for(let j=0;j<14;j++){const o=C.byDate[fromIdx(i+j)];if(!okDay(o)){full=false;break;}}
+      if(!full)continue;
+      let nr=0,sunPair=false;
+      for(let j=0;j<14;j++){if(restDay(C,i+j))nr++;}
+      for(let j=0;j<14;j++){const d=fromIdx(i+j);if(dowOf(d)===0&&restDay(C,i+j)&&(restDay(C,i+j-1)||restDay(C,i+j+1)))sunPair=true;}
+      const why=[];if(nr<RULES.repos.quinzaine)why.push(`${plur(nr,"jour")} de repos`);if(!sunPair)why.push("pas 2 repos consécutifs avec un dimanche");
+      if(why.length)bad.push({d:fromIdx(i),why:why.join(", ")});
+    }return bad;};
+  const a=run(0),b=run(7);
+  // on ne signale que si les deux découpages possibles en quinzaines posent problème
+  return {bad:(a.length&&b.length)?(a.length<=b.length?a:b):[]};
+}
+function max7(C){
+  const bad=[];let max=0,maxD=null;
+  for(let i=C.per.s0;i<=C.per.e-6;i++){
+    let full=true;for(let j=0;j<7;j++){const o=C.byDate[fromIdx(i+j)];if(!okDay(o)){full=false;break;}}if(!full)continue;
+    const ws=i*1440,we=ws+7*1440;let t=0;
+    C.intervals.forEach(x=>{const ov=Math.min(x.e,we)-Math.max(x.s,ws);if(ov>0)t+=ov*(x.h*60/(x.e-x.s));});
+    t/=60;if(t>max){max=t;maxD=fromIdx(i);}if(t>RULES.repos.max7j+1e-6)bad.push(fromIdx(i));
+  }
+  return {bad,max,maxD};
+}
+function workRuns(C){const runs=[];let cur=null;C.days.forEach(o=>{if(o.work){if(cur)cur.n++;else cur={start:o.d,n:1};}else if(cur){runs.push(cur);cur=null;}});if(cur)runs.push(cur);return runs;}
+
+/* ====================== RENDU ====================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("on"),Math.min(4000,1400+m.length*25));}
+function chip(code){const def=codeMap()[nk(code)];const k=def?def.cat:"unknown";return `<span class="chip k-${k}">${esc(code)}</span>`;}
+function getPath(o,p){return p.split(".").reduce((a,k)=>a==null?a:a[k],o);}
+function setPath(o,p,v){const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>a=a[k]);a[ks[ks.length-1]]=v;}
+
+function bindAll(){
+  document.querySelectorAll("[data-bind]").forEach(el=>{
+    const p=el.dataset.bind,v=getPath(S,p);if(document.activeElement!==el)el.value=v==null?"":v;
+    if(el._b)return;el._b=true;
+    el.addEventListener(el.tagName==="SELECT"?"change":"input",()=>{
+      let v=el.value;if(el.hasAttribute("data-num"))v=v===""?null:+v;setPath(S,p,v);
+      if(p==="profil.debut"){if(!v)setPath(S,p,"2026-01-01");setViewY(null);}
+      changed(p==="profil.debut");
+    });
+  });
+}
+function renderContrat(){
+  const P=S.profil;$("#w-fincdd").hidden=P.statut!=="CDD";
+  $("#w-decompte").classList.toggle("need",!P.decompte);
+  const C=compute(modeDec());
+  const bl=P.base?`base ${String(P.base).replace(".5"," h 30").replace(".33"," h 20")}${String(P.base).includes(".")?"":" h"}`:null;
+  const pills=[`${P.statut}`,`${P.quotite==100?"Temps plein":P.quotite+" %"}`,...(bl?[bl]:[]),`${regLabel(C.regime)} · ${fmtH(C.oat)}/an`];
+  $("#contratPills").innerHTML=pills.map(x=>`<span class="pill">${esc(x)}</span>`).join("")+(P.base?"":`<span class="pill warn">base à choisir</span>`)+(P.decompte?"":`<span class="pill warn">décompte à vérifier</span>`)+(S.exemple?`<span class="pill warn">données d'exemple</span>`:"");
+}
+const regLabel=r=>({fixe:"Repos fixe",variable:"Repos variable",nuit:"Nuit exclusive"}[r]);
+
+/* ---- onglet 1 ---- */
+function renderCodes(){
+  const fa=document.activeElement,fk=fa&&fa.dataset&&fa.dataset.ci!=null?[fa.dataset.ci,fa.dataset.f]:null;
+  const C=compute(modeDec());const tb=$("#codesTable tbody");
+  const ORD=["jour","nuit","repos","CA","HSN","RTT","FR","RC","HS","CET","maladie","formation","autre","activite"];
+  const oi=c=>{const k=ORD.indexOf(c.cat);return k<0?99:k;};
+  const sorted=S.codes.map((c,i)=>({c,i})).sort((a,b)=>(!a.c.code?-1:!b.c.code?1:0)||oi(a.c)-oi(b.c)||String(a.c.code).localeCompare(String(b.c.code),"fr",{numeric:true}));
+  tb.innerHTML=sorted.map(({c,i})=>{
+    const cat=CATS[c.cat]||{},work=cat.work,mins=shiftDur(c),used=C.usage[nk(c.code)]||0;
+    const todo=(work&&mins==null)||(!c.lib&&used);
+    const hcell=work?(mins==null?"<span class='muted'>à compléter</span>":fmtH(mins/60)):(cat.credit?`<input type="number" step="0.25" data-ci="${i}" data-f="credit" value="${c.credit??""}" placeholder="${S.profil.valeurJour||7}" aria-label="Heures créditées">`:"<span class='muted'>–</span>");
+    return `<tr class="${todo?"todo":""}">
+      <td class="c-code" data-l="Code"><input data-ci="${i}" data-f="code" value="${esc(c.code)}" aria-label="Code"></td>
+      <td class="lib" data-l="Signification"><input data-ci="${i}" data-f="lib" value="${esc(c.lib)}" placeholder="${KNOWN.has(c.code)?"":"Signification ?"}" aria-label="Signification"></td>
+      <td class="cat" data-l="Catégorie"><select data-ci="${i}" data-f="cat" aria-label="Catégorie">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${k===c.cat?"selected":""}>${v.l}</option>`).join("")}</select></td>
+      <td class="t" data-l="Début">${work?`<input type="time" data-ci="${i}" data-f="debut" value="${c.debut||""}" aria-label="Début">`:""}</td>
+      <td class="t" data-l="Fin">${work?`<input type="time" data-ci="${i}" data-f="fin" value="${c.fin||""}" aria-label="Fin">`:""}</td>
+      <td class="h" data-l="Heures">${hcell}</td>
+      <td class="del" data-l=""><button class="btn ghost danger" data-del="${i}" type="button" aria-label="Supprimer ${esc(c.code)}">✕</button></td></tr>`;
+  }).join("");
+  tb.querySelectorAll("[data-ci]").forEach(el=>{
+    el.addEventListener("change",()=>{const c=S.codes[+el.dataset.ci],f=el.dataset.f;let v=el.value;
+      if(f==="pause")v=+v||0;if(f==="credit")v=v===""?null:+v;if(f==="code")v=v.trim();c[f]=v;changed();});
+  });
+  if(fk){const el=tb.querySelector(`[data-ci="${fk[0]}"][data-f="${fk[1]}"]`);if(el)el.focus();}
+  tb.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    if(!b._arm){b._arm=true;b.textContent="Supprimer ?";setTimeout(()=>{b._arm=false;b.textContent="✕";},3000);return;}
+    S.codes.splice(+b.dataset.del,1);changed();toast("Code supprimé");}));
+  renderRules();
+}
+function lastSaveTxt(){const d=S.lastExport?new Date(S.lastExport):null;return d?`${d.toLocaleDateString("fr-FR")} à ${d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`:null;}
+function unsaved(){return !!(S.dirty&&S.dirty>(S.lastExport||0));}
+const HELP_FILES=`<details><summary>Où trouver mes fichiers ? (sauvegarde .json et Excel reçu par email)</summary>
+  <p class="small" style="margin:8px 0 0"><b>La sauvegarde .json</b> se range dans les téléchargements :</p>
+  <ul class="small"><li><b>iPhone / iPad</b> : app <b>Fichiers</b> › <b>Téléchargements</b> (ou « Sur mon iPhone › Téléchargements »).</li>
+  <li><b>Android</b> : app <b>Fichiers</b> (ou « Mes fichiers ») › <b>Téléchargements</b>.</li>
+  <li><b>Mac / PC</b> : dossier <b>Téléchargements</b>.</li></ul>
+  <p class="small" style="margin:6px 0 0">Pour la retrouver ailleurs, envoyez-la-vous par email : sur l'autre appareil, enregistrez la pièce jointe puis touchez <b>📂 Recharger</b>.</p>
+  <p class="small" style="margin:8px 0 0"><b>Un planning Excel reçu par email</b> :</p>
+  <ul class="small"><li><b>iPhone (Mail)</b> : touchez la pièce jointe, puis le bouton de partage ⬆️ › <b>Enregistrer dans Fichiers</b> › Téléchargements.</li>
+  <li><b>Android (Gmail)</b> : touchez l'icône <b>Télécharger</b> ⬇️ de la pièce jointe : elle va dans Téléchargements.</li>
+  <li><b>Outlook</b> : ouvrez la pièce jointe puis <b>Enregistrer</b> (iPhone : « Enregistrer dans Fichiers »).</li>
+  <li>Ensuite, dans l'onglet Planning, touchez <b>Importer des fichiers Excel</b> et choisissez le fichier dans Téléchargements.</li></ul></details>`;
+function renderSaveInfo(){const el=$("#saveInfo");if(!el)return;const t=lastSaveTxt();
+  el.innerHTML=(t?`Dernière sauvegarde : ${t}.`:"Aucune sauvegarde pour l'instant.")+(unsaved()?" <b style='color:var(--wish)'>Des modifications ne sont pas encore sauvegardées.</b>":"")+(saveErr?" <b style='color:var(--bad)'>Cet appareil n'enregistre plus vos données : sauvegardez en .json.</b>":"");
+  const hf=$("#helpFiles");if(hf&&!hf.innerHTML)hf.innerHTML=HELP_FILES;}
+function renderSaveBar(){renderSaveInfo();if(active()==="p2")renderSetup();}
+function renderRules(){renderSaveInfo();
+  const lab={c:"confirmé",p:"à confirmer",h:"hypothèse"};
+  $("#rulesVer").textContent=`Version ${RULES.version} · règles vérifiées le ${RULES.verif}`;
+  $("#rulesTable tbody").innerHTML=RULES_DOC.map(([r,src,c])=>`<tr><td>${esc(r)}<div class="muted small mono">${esc(src)}</div></td><td><span class="cert ${c}">${lab[c]}</span></td></tr>`).join("");
+}
+
+/* ---- onglet 2 ---- */
+function monthsList(){const p=period();const out=[];for(let k=0;k<12;k++){const m=(p.m+k)%12,y=p.y+Math.floor((p.m+k)/12);out.push({y,m});}return out;}
+let mobIdx=null,navM=null;
+function goMonth(y,m){if(m<0){m=11;y--;}if(m>11){m=0;y++;}const per=period(),i=Date.UTC(y,m,1)/864e5;
+  if(i<per.s0||i>per.e){setViewY(yearOfMonth(y,m));navM={y,m};renderActive();}else{navM={y,m};renderYear();}}
+function onSwipe(el,fn){if(!el||el._sw)return;el._sw=true;let x0=null,y0=null;
+  el.addEventListener("touchstart",e=>{const t=e.touches[0];x0=t.clientX;y0=t.clientY;},{passive:true});
+  el.addEventListener("touchend",e=>{if(x0==null)return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;x0=null;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)fn(dx<0?1:-1);},{passive:true});}
+function renderSetup(){
+  const P=S.profil,miss=[];
+  if(!P.nom)miss.push("votre nom (pour retrouver votre ligne dans l'Excel)");
+  if(!P.base)miss.push("votre base horaire (35 h, 37 h…)");
+  if(!P.decompte)miss.push("le décompte des congés sur une garde (jours ou heures)");
+  const empty=!Object.keys(S.planning).length;
+  let h="";
+  if(empty)h+=`<div class="card setup"><h2>Pour commencer</h2><ol><li>Enregistrez le planning Excel reçu par email dans les fichiers de votre téléphone (voir l'aide ci-dessous).</li><li>Ouvrez l'onglet <b>Réglages</b> et remplissez votre nom et votre base horaire dans « Mon contrat ».</li><li>Revenez ici, touchez <b>Importer des fichiers Excel</b> et choisissez le fichier.</li><li>Vérifiez vos jours, puis allez dans <b>Échanges</b> ou <b>Congés</b>.</li><li>Touchez <b>💾 Sauvegarder</b> de temps en temps : vos données ne sont que sur cet appareil.</li></ol><div class="row"><span class="small">Déjà une sauvegarde ?</span><label class="btn" for="fileJson">📂 Recharger une sauvegarde (.json)</label></div><div class="help">${HELP_FILES}</div></div>`;
+  if(miss.length&&!empty)h+=`<div class="note warn small">À régler dans « Réglages › Mon contrat » : ${miss.join(", ")}. En attendant, les calculs prennent l'hypothèse la plus prudente.</div>`;
+  if(!empty){const t=lastSaveTxt(),u=unsaved();const cls=saveErr?"bad":(u&&(!S.lastExport||Date.now()-S.lastExport>3*864e5))?"warn":"";
+    h+=`<div class="savebar ${cls}"><span>💾 ${saveErr?"<b>Cet appareil n'enregistre plus vos données</b> (stockage plein ou navigation privée) : sauvegardez maintenant.":t?`Dernière sauvegarde : ${t}${u?" · <b>modifications non sauvegardées</b>":""}`:"<b>Jamais sauvegardé</b> : vos données ne sont que sur cet appareil"}</span><button type="button" class="btn" id="saveNow">Sauvegarder</button></div>`;}
+  $("#setupNotice").innerHTML=h;const b=$("#saveNow");if(b)b.addEventListener("click",()=>{exportJson();renderActive();});
+}
+function renderYear(){
+  renderSetup();
+  const fa=document.activeElement,fd=fa&&fa.dataset?fa.dataset.d:null;
+  const mode=modeDec();const C=compute(mode);const t=$("#yearTable");const cm=codeMap();
+  const pd0=pY(S.profil.debut||"2026-01-01"),pd={y:curY(),m:pd0.m,d:pd0.d};
+  {const cy=new Date().getFullYear(),sel=$("#f-annee");const ys=[];for(let y=Math.min(cy-3,pd.y);y<=Math.max(cy+3,pd.y);y++)ys.push(y);
+   sel.innerHTML=ys.map(y=>`<option value="${y}" ${y===pd.y?"selected":""}>${pd.m===0&&pd.d===1?y:y+" – "+(y+1)}</option>`).join("");}
+  // CET de l'année
+  {const y=pd.y,c=cetData(y),pl=cetPlafondVerse(y),mx=RULES.cet.payeMaxH;
+   const v=$("#f-cetv"),pp=$("#f-cetp");if(document.activeElement!==v)v.value=c.verse||"";if(document.activeElement!==pp)pp.value=c.paye||"";
+   $("#h-cetv").textContent=`max ${fmtH(pl)}${pl===RULES.cet.verse1H?" (1re année)":""}`;$("#h-cetp").textContent=`max ${fmtH(mx)} par an`;
+   v.closest(".field").classList.toggle("over",c.verse>pl);pp.closest(".field").classList.toggle("over",c.paye>mx);}
+  // totaux de l'année
+  {const ca=C.ctr.CA,rtt=C.ctr.RTT,fr=C.ctr.FR,u=x=>x.unit==="h"?fmtH(x.droit-x.pris):fmt1(x.droit-x.pris)+" j";const sol=cetSoldeFin(pd.y);
+   const dec=S.profil.decompte?"":" · décompte à confirmer";
+   const tiles=[["Obligation",fmtH(C.oat),`heures à faire sur l'année · ${regLabel(C.regime)}${C.estim?" (estimation)":""}`],
+     ["Heures faites",fmtH(C.workH),`${plur(C.nFill,"mois","mois")} chargé${C.nFill>1?"s":""} dans l'année`],
+     ["Solde d'heures",(C.solde>=0?"+":"")+fmtH(C.solde),`faites − dues sur les mois chargés${dec}`],
+     ["CA restants",u(ca),`sur ${ca.unit==="h"?fmtH(ca.droit):fmt1(ca.droit)+" j"} de droits${dec}`],
+     ["RTT restants",C.baseUnset&&C.taken.RTT?"à renseigner":u(rtt),C.baseUnset?"choisissez votre base horaire":(!rtt.droit&&rtt.pris?"aucun RTT avec cette base horaire : vérifiez-la dans Réglages":"selon votre base horaire")],
+     ["Fériés à récup.",u(fr),"fériés de l'année à reprendre"],
+     ["CET fin d'année",fmtH(sol),`≈ ${fmt1(sol/(+S.profil.valeurJour||7))} jours de 7\u00a0h`],
+     ["Dim. / fériés",String(C.dimFer),C.estim?`≈ ${C.dimFerProj} sur l'année (estimation)`:"travaillés cette année"]];
+   const dts=(S.dettes||[]).filter(x=>!x.rendue);
+   if(dts.length)tiles.push(["Gardes dues",String(dts.length),dts.map(x=>x.sens==="je_dois"?`je dois à ${disp(x.nom)}`:`${disp(x.nom)} me doit`).join(" · ")]);
+   $("#yearKpis").innerHTML=tiles.map(([a,b,c])=>`<div class="ktile"><span>${a}</span><b>${b}</b>${c?`<small>${esc(c)}</small>`:""}</div>`).join("");
+   $("#yearEstim").textContent=C.nFill?`Estimation, à confirmer auprès du cadre ou de la DRH.${C.ref.months<3?` Avec ${plur(C.ref.months,"mois","mois")} de planning seulement, les chiffres sur l'année sont peu fiables.`:""}`:"";
+   $("#lexique").innerHTML=LEXIQUE.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join("");}
+  {const ii=S.importInfo;const lm=m=>`${MC[+m.slice(5)-1]} ${m.slice(0,4)}`;
+   const cnt=ii&&ii.counts?ii.found.map(m=>`${lm(m)} : ${plur(ii.counts[m]||0,"garde")}`).join(" · "):(ii?ii.found.map(lm).join(", "):"");
+   $("#importReport").innerHTML=ii?`<div class="note small">Dernier import (${ii.date.split("-").reverse().join("/")}) : ${plur(ii.found.length,"mois","mois")} trouvé${ii.found.length>1?"s":""} pour <b>${esc(ii.nom||S.profil.nom||"")}</b> (${cnt}). Vérifiez ces nombres avec votre planning papier.${ii.missing.length?` · <b>Nom introuvable dans ${ii.missing.map(lm).join(", ")}</b>`:""}${ii.variants&&ii.variants.length?` · Nom aussi écrit « ${esc(ii.variants.join(" », « "))} »`:""}${ii.team?` · ${plur(ii.team,"planning")} de collègues conservé${ii.team>1?"s":""} (jours à venir seulement) pour proposer des échanges.`:""}</div>`:"";}
+  const cellCls=(ds,v,o,wd)=>{const def=v?cm[nk(v)]:null;const k=v?(def?def.cat:"unknown"):"";const md=(S.mods||{})[ds];return `${k?"k-"+k:""} ${wd===0||wd===6?"we":""} ${o&&o.isFer?"fe":""} ${md?"mod-"+md.type:""}`;};
+  // grille 12 mois (ordinateur)
+  let h="<thead><tr><th class='m'></th>";for(let d=1;d<=31;d++)h+=`<th>${d}</th>`;h+="<th></th></tr></thead><tbody>";
+  const ms=monthsList();
+  ms.forEach(({y,m})=>{
+    h+=`<tr><th class="m">${MC[m]} ${String(y).slice(2)}</th>`;
+    const n=dim(y,m);
+    for(let d=1;d<=31;d++){
+      if(d>n){h+="<td class='x'><input disabled tabindex='-1' aria-hidden='true'></td>";continue;}
+      const ds=ymd(y,m,d),v=S.planning[ds]||"",o=C.byDate[ds],wd=dowOf(ds);
+      h+=`<td><input data-d="${ds}" value="${esc(v)}" class="${cellCls(ds,v,o,wd)}" title="${JC[wd]} ${d} ${MOIS[m]} ${y}${o&&o.isFer?" · "+o.ferName:""}${modTxt(ds)?" · "+modTxt(ds):""}" aria-label="${d} ${MOIS[m]} ${y}" autocapitalize="characters" autocomplete="off"></td>`;
+    }
+    h+=`<td><button type="button" class="btn ghost xbtn" data-mon="${y}-${pad(m+1)}" title="Charger l'Excel de ${MOIS[m]} ${y}" aria-label="Charger l'Excel de ${MOIS[m]} ${y}">📥</button></td></tr>`;
+  });
+  t.innerHTML=h+"</tbody>";
+  // vue mois (téléphone) : navigation continue entre les années
+  if(!navM){const tt=new Date(),ti=Date.UTC(tt.getFullYear(),tt.getMonth(),1)/864e5,per=period();navM=ti>=per.s0&&ti<=per.e?{y:tt.getFullYear(),m:tt.getMonth()}:{y:per.y,m:per.m};}
+  {const fms=filledMonthSet(),fm=[...fms].sort(),tt=new Date(),per=period();const toN=(y,m)=>y*12+m;
+   let lo=Math.min(toN(tt.getFullYear(),tt.getMonth())-12,toN(per.y,per.m),navM.y*12+navM.m),hi=Math.max(toN(tt.getFullYear(),tt.getMonth())+12,toN(per.y,per.m)+11,navM.y*12+navM.m);
+   if(fm.length){lo=Math.min(lo,toN(+fm[0].slice(0,4),+fm[0].slice(5)-1));hi=Math.max(hi,toN(+fm[fm.length-1].slice(0,4),+fm[fm.length-1].slice(5)-1));}
+   let ch="";for(let n=lo;n<=hi;n++){const y=Math.floor(n/12),m=n%12,k=`${y}-${pad(m+1)}`;ch+=`<button type="button" class="mchip ${y===navM.y&&m===navM.m?"on":""}" data-my="${y}" data-mm="${m}">${MC[m]} ${String(y).slice(2)}${fms.has(k)?" <i>●</i>":""}</button>`;}
+   $("#mobChips").innerHTML=ch;}
+  $("#mobDow").innerHTML=["L","M","M","J","V","S","D"].map(x=>`<div class="dow">${x}</div>`).join("");
+  {const {y,m}=navM,n=dim(y,m);$("#mTitle").textContent=`${MOIS[m]} ${y}`;const off=(dowOf(ymd(y,m,1))+6)%7;let g="";for(let k=0;k<off;k++)g+="<div></div>";
+   const fer=feries(y);
+   for(let d=1;d<=n;d++){const ds=ymd(y,m,d),v=S.planning[ds]||"",o=C.byDate[ds]||{isFer:!!fer[ds]},wd=dowOf(ds);
+     g+=`<label class="mcell ${wd===0||wd===6?"we":""} ${o.isFer?"fe":""}"><span>${d}${o.isFer?" F":""} ${modEmoji(ds)}</span><input data-d="${ds}" value="${esc(v)}" class="${cellCls(ds,v,o,wd)}" aria-label="${d} ${MOIS[m]} ${y}" autocapitalize="characters" autocomplete="off" enterkeyhint="next"></label>`;}
+   $("#mobGrid").innerHTML=g;
+   $("#mobLoad").textContent=`📥 Charger l'Excel de ${MOIS[m]} ${y}`;$("#mobLoad").dataset.mon=`${y}-${pad(m+1)}`;}
+  document.querySelectorAll("[data-mon]").forEach(b=>{if(b._b)return;b._b=true;b.addEventListener("click",()=>loadMonth(b.dataset.mon));});
+  $("#mobChips").querySelectorAll("[data-my]").forEach(b=>b.addEventListener("click",()=>goMonth(+b.dataset.my,+b.dataset.mm)));
+  {const on=$("#mobChips .mchip.on"),box=$("#mobChips");if(on&&box)box.scrollLeft=Math.max(0,on.offsetLeft-box.clientWidth/2+on.offsetWidth/2);}
+  document.querySelectorAll("#yearTable input[data-d], #mobGrid input[data-d]").forEach(el=>{
+    el.addEventListener("change",()=>{leaveExample();const v=el.value.trim();if(v)S.planning[el.dataset.d]=v;else delete S.planning[el.dataset.d];changed();});
+    el.addEventListener("paste",e=>{const txt=(e.clipboardData||window.clipboardData).getData("text");if(!txt)return;e.preventDefault();pasteAt(el.dataset.d,txt);});
+  });
+  if(fd){const el=document.querySelector(`#${window.matchMedia("(max-width:760px)").matches?"mobGrid":"yearTable"} input[data-d="${fd}"]`);if(el)el.focus();}
+  const cats=["jour","nuit","activite","repos","CA","HSN","RTT","FR","CET","maladie"];
+  $("#legend").innerHTML=`<div class="legend-t">La couleur de chaque case indique le type de journée :</div>`+cats.map(k=>`<span class="chip k-${k}">${CATS[k].l}</span>`).join("")+`<span class="chip k-unknown">code inconnu</span>
+    <div class="legend-t">Trait violet en bas = jour férié · bordure foncée = week-end · ❌ garde cédée · ↕️ garde récupérée · 💵 heures sup · ● mois déjà chargé</div>`;
+}
+function looksLikeName(tok){if(!tok)return false;const cm=codeMap();if(cm[nk(tok)])return false;return /[a-zà-ÿ]/.test(tok)&&tok.length>3||/\s/.test(tok.trim())&&tok.trim().length>4||/^\d{1,2}[\/.]\d/.test(tok);}
+function pasteAt(ds,txt){
+  leaveExample();
+  const rows=txt.replace(/\r/g,"").split("\n").filter((r,i,a)=>r.length||i<a.length-1);
+  let start=pY(ds);let filled=0;
+  rows.forEach((row,ri)=>{
+    let cells=row.split("\t");if(cells.length&&looksLikeName(cells[0].trim()))cells=cells.slice(1);
+    let y=start.y,m=start.m+ri,d=ri===0?start.d:1;y+=Math.floor(m/12);m%=12;
+    cells.forEach(c=>{if(d>dim(y,m))return;const v=c.trim(),k=ymd(y,m,d);if(v){S.planning[k]=v;filled++;}else delete S.planning[k];d++;});
+  });
+  changed();toast(`${filled} case${filled>1?"s":""} remplie${filled>1?"s":""} — vérifiez la ligne`);
+}
+function leaveExample(){if(S.exemple){S.exemple=false;S.planning={};S.souhaits={};if(S.profil.nom==="Exemple fictif")S.profil.nom="";}}
+
+/* import Excel */
+let XL=null, XLtarget=null;
+$("#f-annee").addEventListener("change",e=>{setViewY(+e.target.value);renderActive();toast(`Année ${e.target.options[e.target.selectedIndex].text}`);});
+$("#yPrev").addEventListener("click",()=>{const n=navM;setViewY(curY()-1);navM=n?{y:n.y-1,m:n.m}:null;renderActive();});
+$("#yNext").addEventListener("click",()=>{const n=navM;setViewY(curY()+1);navM=n?{y:n.y+1,m:n.m}:null;renderActive();});
+$("#mPrev").addEventListener("click",()=>goMonth(navM.y,navM.m-1));
+$("#mNext").addEventListener("click",()=>goMonth(navM.y,navM.m+1));
+onSwipe($("#mobGrid"),dir=>goMonth(navM.y,navM.m+dir));
+onSwipe($("#calGrid"),dir=>calGo(dir));
+function setCet(f,v){const y=curY();S.cetAns=S.cetAns||{};const o=S.cetAns[y]=S.cetAns[y]||{};o[f]=v===""?0:Math.max(0,+v||0);changed();}
+$("#f-cetv").addEventListener("change",e=>setCet("verse",e.target.value));
+$("#f-cetp").addEventListener("change",e=>setCet("paye",e.target.value));
+const normTxt=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z ]+/g," ").replace(/\s+/g," ").trim();
+const normName=a=>normTxt(String(a).replace(/\s+\d+([.,]\d+)?\s*%?\s*$/,""));
+function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c;}return p[n];}
+function sameName(a,b){if(!a||!b)return false;if(a===b)return true;const ta=a.split(" "),tb=b.split(" ");const sa=new Set(ta),sb=new Set(tb);const sub=(x,y)=>[...x].every(t=>y.has(t));
+  if(ta.length>=2&&tb.length>=2&&(sub(sa,sb)||sub(sb,sa)))return true;return Math.max(a.length,b.length)>=8&&lev(a,b)<=2;}
+const pretty=k=>{const t=k.split(" ");return t.length>1?t[0]+" "+t.slice(1).map(w=>w[0]+w.slice(1).toLowerCase()).join(" "):k;};
+// nom tel qu'écrit dans l'Excel (accents conservés), sans la quotité
+const cleanName=a=>String(a||"").replace(/\s+\d+([.,]\d+)?\s*%?\s*$/,"").replace(/\s+/g," ").trim();
+const disp=k=>{const E=(S.equipe||{})[k];return E&&E.nom?E.nom:(S.noms&&S.noms[k])||pretty(k);};
+function cellDate(a){
+  if(a instanceof Date){const t=new Date(a.getTime()+12*36e5);return {y:t.getFullYear(),m:t.getMonth()};}
+  if(typeof a==="number"&&a>30000&&a<80000){const t=new Date(Math.round((a-25569)*864e5)+12*36e5);return {y:t.getUTCFullYear(),m:t.getUTCMonth()};}
+  if(typeof a==="string"){const m=a.trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);if(m){let y=+m[3];if(y<100)y+=2000;return {y,m:+m[2]-1};}}
+  return null;}
+async function readWorkbooks(files){
+  const people=[];const months=new Set();let nf=0;
+  for(const f of files){
+    try{
+      const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});
+      wb.SheetNames.forEach(sn=>{
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});let month=null,cols=null;
+        rows.forEach(r=>{const a=r[0];
+          // le mois est lu dans la colonne A (01/mm/aaaa), jamais dans le nom de la feuille
+          const cd=cellDate(a);if(cd){month=cd;cols=null;months.add(`${month.y}-${pad(month.m+1)}`);return;}
+          if(!month)return;
+          if((a==null||a==="")&&+r[1]===1){cols={};let prev=0;for(let c=1;c<r.length;c++){const dn=+r[c];if(!dn||dn<prev)break;cols[dn]=c;prev=dn;}return;}
+          if(typeof a!=="string"||!a.trim())return;
+          const n=dim(month.y,month.m);const vals=[];for(let d=1;d<=n;d++){const c=cols&&cols[d]?cols[d]:d;const x=r[c];vals.push(x==null?"":String(x).trim());}
+          if(!vals.some(Boolean))return;
+          const key=normName(a);if(!key)return;const mk_=`${month.y}-${pad(month.m+1)}`;
+          let p=people.find(x=>sameName(x.key,key));if(!p){p={key,names:new Set(),months:{}};people.push(p);}
+          p.names.add(a.trim());
+          if(p.months[mk_]){p.months[mk_]=p.months[mk_].map((v,i)=>v||vals[i]||"");}else p.months[mk_]=vals;
+        });
+      });nf++;
+    }catch(err){toast(`Impossible de lire ${f.name}`);}
+  }
+  return {people,months:[...months].sort(),nf};
+}
+function teamPurge(){const t=todayStr(),cur=t.slice(0,7);const E=S.equipe||{};
+  Object.keys(E).forEach(n=>{const p=E[n];Object.keys(p.j||{}).forEach(d=>{if(d<t)delete p.j[d];});p.mois=(p.mois||[]).filter(m=>m>=cur);if(!p.mois.length)delete E[n];});S.equipe=E;}
+function storeTeam(people,me){
+  const t=todayStr();S.equipe=S.equipe||{};
+  people.forEach(p=>{if(p===me)return;
+    Object.entries(p.months).forEach(([mk_,vals])=>{const y=+mk_.slice(0,4),m=+mk_.slice(5)-1;if(`${mk_}`<t.slice(0,7))return;
+      const E=S.equipe[p.key]=S.equipe[p.key]||{mois:[],j:{}};if(!E.nom)E.nom=cleanName([...p.names][0]);if(!E.mois.includes(mk_))E.mois.push(mk_);
+      for(let d=1;d<=dim(y,m);d++){const ds=ymd(y,m,d);if(ds<t)continue;const v=vals[d-1]||"";if(v)E.j[ds]=v;else delete E.j[ds];}});});
+  teamPurge();
+}
+function applyMe(me){
+  leaveExample();let c=0;const found=[],counts={};const cm=codeMap();
+  Object.keys(me.months).sort().forEach(mk_=>{const y=+mk_.slice(0,4),m=+mk_.slice(5)-1,vals=me.months[mk_];found.push(mk_);counts[mk_]=0;
+    for(let d=1;d<=dim(y,m);d++){const k=ymd(y,m,d);const v=vals[d-1]||"";if(v&&isWorkDef(defFor(v,cm)))counts[mk_]++;
+      const md=(S.mods||{})[k];if(md){if(md.type==="hs"||md.type==="recup")md.prev=v;continue;}if(v){S.planning[k]=v;c++;}else delete S.planning[k];}});
+  if(!S.profil.nom||S.profil.nom==="Exemple fictif")S.profil.nom=cleanName([...me.names][0])||pretty(me.key);
+  storeTeam(XL.people,me);
+  const missing=XL.months.filter(m=>!found.includes(m));
+  const lm=m=>`${MC[+m.slice(5)-1]} ${m.slice(0,4)}`;
+  const variants=[...me.names].filter(n=>normName(n)!==me.key);
+  S.importInfo={date:todayStr(),found,missing,variants,counts,nom:cleanName([...me.names][0]),team:Object.keys(S.equipe||{}).length};
+  const last=found[found.length-1];if(last){const per=period(),li=Date.UTC(+last.slice(0,4),+last.slice(5)-1,1)/864e5;
+    if(li<per.s0||li>per.e)setViewY(yearOfMonth(+last.slice(0,4),+last.slice(5)-1));}
+  navM=null;markDirty();changed();
+  toast(`${plur(found.length,"mois","mois")} importé${found.length>1?"s":""}`+(missing.length?` · nom introuvable dans : ${missing.map(lm).join(", ")}`:""));
+}
+function pickName(){
+  const names=XL.people.map(p=>p.key).sort((a,b)=>a.localeCompare(b,"fr"));const sel=$("#xlsxName");
+  const nm=k=>{const p=XL.people.find(x=>x.key===k);return p?cleanName([...p.names][0]):pretty(k);};
+  sel.innerHTML=`<option value="">Choisir mon nom (${names.length})</option>`+names.map(n=>`<option value="${esc(n)}">${esc(nm(n))}</option>`).join("");
+  sel.hidden=false;$("#xlsxApply").hidden=false;
+  const me=XL.people.find(p=>sameName(p.key,normName(S.profil.nom||"")));if(me)sel.value=me.key;
+}
+async function onExcelFiles(files,auto){
+  if(!files.length)return;
+  if(typeof XLSX==="undefined"){toast("Lecture Excel indisponible : utilisez le copier-coller");return;}
+  XL=await readWorkbooks(files);
+  if(!XL.people.length){toast("Aucune ligne de planning reconnue");return;}
+  const me=S.profil.nom?XL.people.find(p=>sameName(p.key,normName(S.profil.nom))):null;
+  if(auto&&me){$("#xlsxName").hidden=true;$("#xlsxApply").hidden=true;applyMe(me);return;}
+  pickName();toast(`${XL.nf} fichier${XL.nf>1?"s":""} lu${XL.nf>1?"s":""} : choisissez votre nom`);
+}
+$("#fileXlsx").addEventListener("change",async e=>{const f=[...e.target.files];e.target.value="";await onExcelFiles(f,true);});
+$("#fileMonth").addEventListener("change",async e=>{const f=[...e.target.files];e.target.value="";await onExcelFiles(f,true);
+  if(XL&&XLtarget&&!XL.months.includes(XLtarget))toast(`Attention : ce fichier contient ${XL.months.map(m=>MOIS[+m.slice(5)-1]+" "+m.slice(0,4)).join(", ")}`);});
+$("#xlsxApply").addEventListener("click",()=>{const n=$("#xlsxName").value;const me=XL&&XL.people.find(p=>p.key===n);if(!me){toast("Choisissez d'abord votre nom");return;}
+  if(!S.profil.nom)S.profil.nom=cleanName([...me.names][0])||pretty(me.key);applyMe(me);$("#xlsxName").hidden=true;$("#xlsxApply").hidden=true;});
+function loadMonth(mk_){XLtarget=mk_;$("#fileMonth").click();}
+
+/* ---- échanges & heures sup ---- */
+function modEmoji(d){const m=(S.mods||{})[d];return m?(m.type==="cede"?"❌":m.type==="recup"?"↕️":m.type==="hs"?"💵":""):"";}
+function gardeLib(code){const df=codeMap()[nk(code)];return df&&df.lib?`${code} (${df.lib})`:code;}
+function modTxt(d){const m=(S.mods||{})[d];if(!m)return "";
+  if(m.type==="cede"){if(m.kind==="reprise")return `reprise par ${disp(m.nom)}, je lui dois une garde`;
+    const o=m.avec&&(S.mods||{})[m.avec];return `échangée avec ${disp(m.nom)}${m.avec?` contre sa ${o?gardeLib(o.code):"garde"} du ${dl(m.avec)}`:""}`;}
+  if(m.type==="recup"){const o=m.du&&(S.mods||{})[m.du];return `garde de ${disp(m.nom)}${m.du?`, en échange de ma ${o?gardeLib(o.code):"garde"} du ${dl(m.du)}`:", me doit une garde"}`;}
+  if(m.type==="hs")return "heures sup";return "";}
+function markDirty(){S.dirty=Date.now();}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function defFor(code,cm){if(!code)return null;const c=nk(code);if(c==="R")return null;const d=cm[c];if(d)return d;return {cat:"activite",debut:"07:30",fin:"16:00",pause:0,guess:true};}
+const isWorkDef=d=>!!(d&&CATS[d.cat]&&CATS[d.cat].work);
+function myMapObj(){const m={};Object.keys(S.planning).forEach(d=>{const v=effCode(d);if(v)m[d]=v;});return m;}
+function ivsOf(map,cm,i0,i1){const out=[];for(let i=i0;i<=i1;i++){const ds=fromIdx(i);const def=defFor(map[ds],cm);if(!isWorkDef(def))continue;const mins=shiftDur(def);if(mins==null)continue;const a=tmin(def.debut);out.push({s:i*1440+a,e:i*1440+a+mins+(+def.pause||0),h:realMins(def,i)/60,d:ds});}return out.sort((a,b)=>a.s-b.s);}
+// contrôle légal autour d'une date pour un planning quelconque (moi ou une collègue)
+function legal(map,known,center,cm){
+  const c=idx(center);const iv=ivsOf(map,cm,c-9,c+9);const hard=[],soft=[];
+  for(let k=1;k<iv.length;k++){const g=iv[k].s-iv[k-1].e;if(g<RULES.repos.quotidien*60&&(iv[k].d===center||iv[k-1].d===center))hard.push(`repos de ${fmtH(Math.max(0,g)/60)} seulement entre le ${dl(iv[k-1].d)} et le ${dl(iv[k].d)}`);}
+  iv.forEach(x=>{if(x.h>RULES.repos.maxPoste&&x.d===center)hard.push(`poste de ${fmtH(x.h)}`);});
+  for(let st=c-6;st<=c;st++){let ok=true;for(let j=0;j<7;j++)if(!known(st+j)){ok=false;break;}if(!ok)continue;
+    const ws=st*1440,we=ws+7*1440;let t=0;iv.forEach(x=>{const ov=Math.min(x.e,we)-Math.max(x.s,ws);if(ov>0)t+=ov*(x.h*60/(x.e-x.s));});t/=60;
+    if(t>RULES.repos.max7j+1e-6){hard.push(`${fmtH(t)} sur 7 jours à partir du ${dl(fromIdx(st))}`);break;}}
+  {let ws=c;while(dowOf(fromIdx(ws))!==1)ws--;let ok=true;for(let j=0;j<7;j++)if(!known(ws+j)){ok=false;break;}
+   if(ok){const W0=ws*1440,W1=W0+7*1440;const m=[];iv.forEach(x=>{if(m.length&&x.s<=m[m.length-1].e)m[m.length-1].e=Math.max(m[m.length-1].e,x.e);else m.push({s:x.s,e:x.e});});
+     const gaps=[];let prev=(ws-3)*1440;m.forEach(x=>{gaps.push({s:prev,e:x.s});prev=x.e;});gaps.push({s:prev,e:(ws+10)*1440});const need=RULES.repos.hebdo*60;
+     if(!gaps.some(g=>{const inside=Math.min(g.e,W1)-Math.max(g.s,W0);const startsIn=g.s>=W0&&g.s<W1;return inside>=need||(startsIn&&g.e-g.s>=need);}))soft.push(`pas de repos de 36 h d'affilée la semaine du ${dl(fromIdx(ws))}`);}}
+  if(isWorkDef(defFor(map[center],cm))){let n=1;for(let i=c-1;i>c-20&&isWorkDef(defFor(map[fromIdx(i)],cm));i--)n++;for(let i=c+1;i<c+20&&isWorkDef(defFor(map[fromIdx(i)],cm));i++)n++;
+    if(n>RULES.repos.enchainement)soft.push(`${n} jours de travail d'affilée`);}
+  return {hard,soft};
+}
+function teamKnown(X){const t=todayStr();return i=>{const ds=fromIdx(i);return ds>=t&&(X.mois||[]).includes(ds.slice(0,7));};}
+function meKnownFn(){const fm=filledMonthSet();return i=>fm.has(fromIdx(i).slice(0,7));}
+function swapCands(d,same){
+  const cm=codeMap(),myC=effCode(d),myDef=defFor(myC,cm),me=myMapObj(),meKnown=meKnownFn(),t=todayStr();
+  const res={reprise:[],echange:[]};const E=S.equipe||{};
+  Object.keys(E).forEach(n=>{const X=E[n],xKnown=teamKnown(X);if(!xKnown(idx(d)))return;
+    const xc=X.j[d];if(xc&&nk(xc)!=="R")return;
+    const Xa={...X.j,[d]:myC};const L1=legal(Xa,xKnown,d,cm);if(L1.hard.length)return;
+    res.reprise.push({nom:n,soft:L1.soft});
+    Object.keys(X.j).sort().forEach(d2=>{if(d2<t||d2===d)return;const c2=X.j[d2],def2=defFor(c2,cm);if(!isWorkDef(def2)||def2.guess)return;
+      if(same&&def2.cat!==myDef.cat)return;if(!meKnown(idx(d2)))return;const mine=effCode(d2);if(mine&&nk(mine)!=="R")return;
+      const Ma={...me};delete Ma[d];Ma[d2]=c2;const L2=legal(Ma,meKnown,d2,cm);if(L2.hard.length)return;
+      const Xb={...Xa};delete Xb[d2];const L3=legal(Xb,xKnown,d,cm);if(L3.hard.length)return;
+      const h1=(shiftDur(myDef)||0)/60,h2=(shiftDur(def2)||0)/60;
+      res.echange.push({nom:n,d2,c2,dh:h2-h1,soft:[...new Set([...L2.soft,...L3.soft])]});});});
+  res.echange.sort((a,b)=>Math.abs(a.dh)-Math.abs(b.dh)||Math.abs(idx(a.d2)-idx(d))-Math.abs(idx(b.d2)-idx(d)));
+  return res;
+}
+function hsCheck(d,code){
+  const cm=codeMap(),def=cm[nk(code)],out={hard:[],soft:[],ok:[]};
+  if(!d||!def||!isWorkDef(def)){out.info="Choisissez la date et la garde proposées : l'outil vérifie vos repos et le plafond d'heures sup.";return out;}
+  const cur=effCode(d);if(cur&&nk(cur)!=="R"){const cd=defFor(cur,cm);out.hard.push(isWorkDef(cd)?`Vous travaillez déjà ce jour-là (${cur}) : choisissez une autre date.`:`Ce jour-là est déjà un congé ou une absence (${cur}) : choisissez une autre date.`);}
+  const fm=filledMonthSet(),i0=idx(d);const known=[fromIdx(i0-1),d,fromIdx(i0+1)].every(x=>fm.has(x.slice(0,7)));
+  if(!known)out.soft.push("Votre planning de ce mois (ou du mois voisin) n'est pas chargé : les repos autour de cette garde ne peuvent pas être vérifiés. Chargez l'Excel dans l'onglet Planning.");
+  const me=myMapObj();me[d]=code;const L=legal(me,meKnownFn(),d,cm);out.hard.push(...L.hard);out.soft.push(...L.soft);
+  const h=(shiftDur(def)||0)/60,mk_=d.slice(0,7),y=d.slice(0,4);let hm=0,hy=0;
+  Object.entries(S.mods||{}).forEach(([dd,m])=>{if(m.type!=="hs")return;const df=cm[nk(m.code)];const hh=(shiftDur(df)||0)/60;if(dd.slice(0,7)===mk_)hm+=hh;if(dd.slice(0,4)===y)hy+=hh;});
+  if(hm+h>RULES.hs.contingentMois)out.soft.push(`Heures sup du mois : ${fmtH(hm+h)} pour ${RULES.hs.contingentMois} h autorisées (au-delà, dérogation nécessaire).`);
+  if(hy+h>RULES.hs.contingentAn)out.soft.push(`Heures sup de l'année : ${fmtH(hy+h)} pour ${RULES.hs.contingentAn} h autorisées.`);
+  if(out.hard.length)out.hard.push("Cette garde ne respecte pas les règles : refusez-la ou demandez une dérogation au cadre.");
+  else if(known)out.ok.push(`Repos de 12 h et maximum de 48 h sur 7 jours respectés · ${fmtH(h)} payées ou récupérées (majorées la nuit, le dimanche et les fériés).`);
+  return out;
+}
+function teamKey(name){const k=normName(name);const E=S.equipe||{};return Object.keys(E).find(x=>sameName(x,k))||k;}
+function addMod(d,m){S.mods=S.mods||{};S.mods[d]=m;}
+// état du planning de la collègue avant modification, pour pouvoir annuler
+function teamSnap(nom,dates){const X=(S.equipe||{})[nom];if(!X)return null;const j={};dates.forEach(d=>{j[d]=X.j[d]!=null?X.j[d]:null;});return {nom,j};}
+let exSel=null,exDone=null,exMonth=null;
+function vSwap(d,nom,d2,c2){nom=teamKey(nom);const id=uid(),c=effCode(d);
+  addMod(d,{type:"cede",kind:"echange",nom,avec:d2,code:c,id,team:teamSnap(nom,[d,d2])});addMod(d2,{type:"recup",nom,du:d,code:c2,prev:S.planning[d2]||"",id});S.planning[d2]=c2;
+  const X=(S.equipe||{})[nom];if(X){X.j[d]=c;delete X.j[d2];}finish([d,d2],`Échange avec ${disp(nom)} enregistré`);}
+function vReprise(d,nom){nom=teamKey(nom);const id=uid(),c=effCode(d);addMod(d,{type:"cede",kind:"reprise",nom,code:c,id,team:teamSnap(nom,[d])});
+  (S.dettes=S.dettes||[]).push({id,sens:"je_dois",nom,date:d,code:c});const X=(S.equipe||{})[nom];if(X)X.j[d]=c;finish([d],`Garde reprise par ${disp(nom)} : vous lui devez une garde`);}
+function vJeReprends(nom,d2,c2){nom=teamKey(nom);const id=uid();addMod(d2,{type:"recup",nom,du:null,code:c2,prev:S.planning[d2]||"",id,team:teamSnap(nom,[d2])});S.planning[d2]=c2;
+  (S.dettes=S.dettes||[]).push({id,sens:"me_doit",nom,date:d2,code:c2});const X=(S.equipe||{})[nom];if(X)delete X.j[d2];finish([d2],`Garde de ${disp(nom)} ajoutée : cette personne vous doit une garde`);}
+function vHS(d,code){const id=uid();addMod(d,{type:"hs",code,prev:S.planning[d]||"",id});S.planning[d]=code;finish([d],"Garde en heures sup ajoutée");}
+function undoMod(id){Object.entries(S.mods||{}).forEach(([d,m])=>{if(m.id!==id)return;if(m.type==="recup"||m.type==="hs"){if(m.prev)S.planning[d]=m.prev;else delete S.planning[d];}
+    if(m.team){const X=(S.equipe||{})[m.team.nom];if(X)Object.entries(m.team.j).forEach(([dd,v])=>{if(v==null)delete X.j[dd];else X.j[dd]=v;});}
+    delete S.mods[d];});
+  S.dettes=(S.dettes||[]).filter(x=>x.id!==id);markDirty();changed();toast("Modification annulée");}
+function finish(dates,msg){exSel=null;exDone=dates;markDirty();teamPurge();changed();exportJson();toast(msg);}
+function exportJson(){const d=new Date();S.lastExport=Date.now();save();offerFile(`planning-sf-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`,JSON.stringify({...S,app:"planning-hopital",appVersion:RULES.version}),"application/json");renderSaveInfo();}
+// contrôle commun pour une garde ajoutée à mon planning (échange décalé, j'ai repris)
+function addCheck(d2,c2,removeD){const t=todayStr(),out=[];let ok=true;
+  if(!d2)return {ok:false,html:""};
+  if(d2<t){out.push(`<div class="tip bad">Date passée : choisissez une date à venir.</div>`);ok=false;}
+  const cur=effCode(d2);if(cur&&nk(cur)!=="R"){out.push(`<div class="tip bad">Vous avez déjà ${esc(cur)} ce jour-là.</div>`);ok=false;}
+  const me=myMapObj();if(removeD)delete me[removeD];me[d2]=c2;const fm=filledMonthSet(),i2=idx(d2);
+  const known=[fromIdx(i2-1),d2,fromIdx(i2+1)].every(x=>fm.has(x.slice(0,7)));
+  const L=legal(me,meKnownFn(),d2,codeMap());
+  L.hard.forEach(x=>out.push(`<div class="tip bad">${esc(x)}</div>`));if(L.hard.length)ok=false;
+  L.soft.forEach(x=>out.push(`<div class="tip warn">À vérifier : ${esc(x)}</div>`));
+  if(!known)out.push(`<div class="tip warn">Votre planning de ce mois n'est pas chargé : les repos ne peuvent pas être vérifiés.</div>`);
+  else if(ok&&!L.soft.length)out.push(`<div class="tip">Repos respectés de votre côté.</div>`);
+  return {ok,html:out.join("")};}
+function workOptions(sel){return S.codes.filter(c=>isWorkDef(c)&&c.code).map(c=>`<option value="${esc(c.code)}" ${c.code===sel?"selected":""}>${esc(c.code)} · ${esc(c.lib||CATS[c.cat].l)}</option>`).join("");}
+function renderEx(){
+  const cm=codeMap(),t=todayStr(),E=S.equipe||{},nTeam=Object.keys(E).length;
+  // heures sup
+  const hd=$("#hsDate"),hc=$("#hsCode");if(!hc.options.length||hc._n!==S.codes.length){hc.innerHTML=`<option value="">Choisir la garde</option>`+workOptions(hc.value||"");hc._n=S.codes.length;}
+  const r=hsCheck(hd.value,hc.value);
+  $("#hsResult").innerHTML=(r.info?`<p class="muted small" style="margin:0">${esc(r.info)}</p>`:"")+[...r.hard.map(x=>`<div class="tip bad">${esc(x)}</div>`),...r.soft.map(x=>`<div class="tip warn">${esc(x)}</div>`),...r.ok.map(x=>`<div class="tip">${esc(x)}</div>`)].join("");
+  $("#hsValid").disabled=!!r.hard.length||!!r.info;
+  // mes prochaines gardes
+  $("#teamNames").innerHTML=Object.keys(E).sort().map(n=>`<option value="${esc(disp(n))}">`).join("");
+  $("#exTeamInfo").textContent=nTeam?`${plur(nTeam,"planning")} de collègues chargé${nTeam>1?"s":""} (jours à venir seulement).`:"Chargez l'Excel du mois dans l'onglet Planning pour voir avec qui échanger.";
+  // gardes à venir, mois par mois (dates passées exclues)
+  const allMine=Object.keys(S.planning).filter(d=>d>=t).sort().filter(d=>{const m=(S.mods||{})[d];return isWorkDef(defFor(S.planning[d],cm))&&!(m&&m.type==="cede");});
+  const months=[...new Set([t.slice(0,7),...allMine.map(d=>d.slice(0,7)),...Object.values(E).flatMap(x=>x.mois||[])])].filter(m=>m>=t.slice(0,7)).sort();
+  if(!exMonth||!months.includes(exMonth))exMonth=(allMine[0]||t).slice(0,7);
+  $("#exMonths").innerHTML=months.map(m=>`<button type="button" class="mchip ${m===exMonth?"on":""}" data-exm="${m}">${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}</button>`).join("");
+  $("#exMonths").querySelectorAll("[data-exm]").forEach(b=>b.addEventListener("click",()=>{exMonth=b.dataset.exm;exSel=null;renderEx();}));
+  const same0=$("#exSame")?$("#exSame").checked:true;
+  const mine=allMine.filter(d=>d.slice(0,7)===exMonth);
+  $("#exMine").innerHTML=mine.length?mine.map(d=>{const n=nTeam?swapCands(d,same0).echange.length:0;return `<button type="button" class="mchip ${exSel===d?"on":""}" data-exd="${d}">${modEmoji(d)} ${JOURS[dowOf(d)]} ${pY(d).d} · ${esc(S.planning[d])}${nTeam?`<span class="exbadge ${n?"":"zero"}">${n}</span>`:""}</button>`;}).join(""):`<p class="muted small">Aucune garde à venir ce mois-ci dans votre planning.</p>`;
+  $("#exMine").querySelectorAll("[data-exd]").forEach(b=>b.addEventListener("click",()=>{exSel=exSel===b.dataset.exd?null:b.dataset.exd;exDone=null;renderEx();}));
+  // détail
+  const det=$("#exDetail");
+  if(!exSel){det.innerHTML="";}
+  else{
+    const d=exSel,c=effCode(d),def=defFor(c,cm),same=$("#exSame")?$("#exSame").checked:true;const R2=swapCands(d,same);
+    const card=x=>`<div class="excand"><div><b>${esc(disp(x.nom))}</b> prend votre ${esc(c)} du ${dl(d)}<br>vous prenez sa ${esc(x.c2)} du ${dl(x.d2)}${x.dh?` <span class="muted">(${x.dh>0?"+":""}${fmtH(x.dh)})</span>`:""}${x.soft.length?`<div class="small" style="color:var(--warn)">À vérifier : ${esc(x.soft.join(" · "))}</div>`:""}</div>
+      <button type="button" class="btn primary" data-sw="${esc(x.nom)}|${x.d2}|${esc(x.c2)}">Accord obtenu : valider</button></div>`;
+    det.innerHTML=`<div class="exhead">${chip(c)} <b>${dl(d)}</b> <span class="muted">${def&&def.debut?def.debut+"–"+def.fin:""}</span></div>
+      <label class="small"><input type="checkbox" id="exSame" ${same?"checked":""}> même type de garde uniquement</label>
+      <h3>Échange simple (règles de repos vérifiées pour vous deux)</h3>
+      ${!nTeam?`<p class="muted small">Pas de planning d'équipe chargé.</p>`:R2.echange.length?`<div class="stack" style="gap:8px">${R2.echange.slice().sort((x,y)=>x.d2<y.d2?-1:x.d2>y.d2?1:Math.abs(x.dh)-Math.abs(y.dh)).map(card).join("")}</div>`:`<p class="muted small">Aucun échange direct possible avec les plannings chargés.</p>`}
+      ${R2.reprise.length?`<p class="small" style="margin:0">Libres et dans les règles pour reprendre votre garde (sans échange) :</p><div class="row" style="gap:6px">${R2.reprise.map(x=>`<button type="button" class="btn" data-rp="${esc(x.nom)}">${esc(disp(x.nom))}</button>`).join("")}</div>`:""}
+      <h3>Cas plus compliqué</h3>
+      <details class="exopt"><summary>1. Un ou une collègue la reprend, je ne peux pas lui en rendre une ce mois-ci</summary>
+        <div class="row" style="margin-top:8px"><input id="o1nom" list="teamNames" placeholder="Nom du ou de la collègue" class="inp"><button type="button" class="btn primary" id="o1ok">Valider</button></div>
+        <p class="muted small">Votre garde s'affichera « reprise par … » et un rappel indiquera que vous lui devez une garde.</p></details>
+      <details class="exopt"><summary>2. Échange décalé : je reprends une de ses gardes à une autre date</summary>
+        <div class="row" style="margin-top:8px"><input id="o2nom" list="teamNames" placeholder="Nom du ou de la collègue" class="inp"><input type="date" id="o2date" class="inp" min="${t}"><select id="o2code" class="inp">${workOptions(c)}</select><button type="button" class="btn primary" id="o2ok">Valider</button></div>
+        <div id="o2res"></div></details>`;
+    det.querySelectorAll("[data-sw]").forEach(b=>b.addEventListener("click",()=>{const [n,d2,c2]=b.dataset.sw.split("|");vSwap(d,n,d2,c2);}));
+    det.querySelectorAll("[data-rp]").forEach(b=>b.addEventListener("click",()=>{const o=det.querySelector("details.exopt");o.open=true;$("#o1nom").value=disp(b.dataset.rp);$("#o1nom").focus();}));
+    $("#exSame").addEventListener("change",renderEx);
+    $("#o1ok").addEventListener("click",()=>{const n=$("#o1nom").value.trim();if(!n){toast("Indiquez le nom");return;}vReprise(d,n);});
+    const chk2=()=>{const d2=$("#o2date").value,c2=$("#o2code").value;if(!d2){$("#o2res").innerHTML="";return false;}
+      const r2=addCheck(d2,c2,d);$("#o2res").innerHTML=r2.html;return r2.ok;};
+    $("#o2date").addEventListener("change",chk2);$("#o2code").addEventListener("change",chk2);
+    $("#o2ok").addEventListener("click",()=>{const n=$("#o2nom").value.trim(),d2=$("#o2date").value,c2=$("#o2code").value;if(!n||!d2){toast("Indiquez le nom et la date");return;}if(!chk2()){toast("Cet échange ne respecte pas les repos");return;}vSwap(d,n,d2,c2);});
+  }
+  // gardes dues + historique
+  const ds=(S.dettes||[]);const groups={};Object.entries(S.mods||{}).forEach(([d,m])=>{(groups[m.id]=groups[m.id]||[]).push([d,m]);});
+  const hist=Object.values(groups).sort((a,b)=>a[0][0]<b[0][0]?1:-1).map(g=>{const id=g[0][1].id;
+    return `<div class="excand"><div>${g.sort().map(([d,m])=>`${modEmoji(d)} ${dl(d)} ${esc(m.code)} · ${esc(modTxt(d))}`).join("<br>")}</div><button type="button" class="btn ghost" data-undo="${id}">Annuler</button></div>`;}).join("");
+  $("#exHist").innerHTML=(ds.filter(x=>!x.rendue).length?`<div class="stack" style="gap:6px">${ds.filter(x=>!x.rendue).map(x=>`<div class="tip warn">${x.sens==="je_dois"?`Vous devez une garde à <b>${esc(disp(x.nom))}</b>`:`<b>${esc(disp(x.nom))}</b> vous doit une garde`} (${esc(x.code||"")} du ${dl(x.date)}) <button type="button" class="linkbtn" data-paid="${x.id}">c'est rendu</button></div>`).join("")}</div>`:"")
+    +(hist||`<p class="muted small">Aucun échange ni heure sup enregistré.</p>`)
+    +`<details class="exopt" style="margin-top:8px"><summary>J'ai repris la garde d'un ou d'une collègue (cette personne me doit une garde)</summary><div class="row" style="margin-top:8px"><input id="o3nom" list="teamNames" placeholder="Nom du ou de la collègue" class="inp"><input type="date" id="o3date" class="inp" min="${t}"><select id="o3code" class="inp">${workOptions("G2")}</select><button type="button" class="btn primary" id="o3ok">Valider</button></div><div id="o3res"></div></details>`;
+  $("#exHist").querySelectorAll("[data-undo]").forEach(b=>b.addEventListener("click",()=>undoMod(b.dataset.undo)));
+  $("#exHist").querySelectorAll("[data-paid]").forEach(b=>b.addEventListener("click",()=>{const x=S.dettes.find(z=>z.id===b.dataset.paid);if(x){x.rendue=true;markDirty();changed();}}));
+  const chk3=()=>{const d2=$("#o3date").value,c2=$("#o3code").value;const r3=addCheck(d2,c2,null);$("#o3res").innerHTML=r3.html;return r3.ok;};
+  $("#o3date").addEventListener("change",chk3);$("#o3code").addEventListener("change",chk3);
+  $("#o3ok").addEventListener("click",()=>{const n=$("#o3nom").value.trim(),d2=$("#o3date").value,c2=$("#o3code").value;if(!n||!d2){toast("Indiquez le nom et la date");return;}
+    if(!chk3()){toast("Garde impossible : voir le message sous le formulaire");return;}vJeReprends(n,d2,c2);});
+  // après validation
+  $("#exDoneBox").innerHTML=exDone?`<div class="note stack" style="gap:8px"><div><b>Enregistré.</b> La sauvegarde (.json) a été proposée au téléchargement.</div>
+    <div class="row"><button type="button" class="btn primary" id="exIos">Mettre à jour mon agenda (iPhone, iPad, Mac)</button></div>
+    <div class="stack" style="gap:6px"><span class="small">Google Agenda (Android) :</span>${gcalLinks(eventsFor(exDone,true))}</div>
+    <div class="muted small">L'ancienne garde déjà présente dans l'agenda n'est pas supprimée automatiquement : supprimez-la à la main.</div></div>`:"";
+  if(exDone)$("#exIos").addEventListener("click",()=>{const {txt,n}=buildIcs(exDone);if(n)openOnIphone(txt);});
+}
+$("#hsDate").addEventListener("change",renderEx);$("#hsCode").addEventListener("change",renderEx);
+$("#hsValid").addEventListener("click",()=>{const d=$("#hsDate").value,c=$("#hsCode").value;const r=hsCheck(d,c);if(r.hard.length){toast("Garde impossible : voir les règles");return;}vHS(d,c);});
+
+/* ---- onglet 3 ---- */
+function renderCal(){
+  const mode=modeDec();const O=optimize(mode);const C=O.C0||compute(mode);
+  const per=period();if(!calMonth){const t=new Date();const ti=Date.UTC(t.getFullYear(),t.getMonth(),1)/864e5;calMonth=ti>=per.s0&&ti<=per.e?{y:t.getFullYear(),m:t.getMonth()}:{y:per.y,m:per.m};}
+  const {y,m}=calMonth;$("#calTitle").textContent=`${MOIS[m]} ${y}`;
+  $("#calDow").innerHTML=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(x=>`<div class="dow">${x}</div>`).join("");
+  const first=Date.UTC(y,m,1)/864e5;let off=(dowOf(fromIdx(first))+6)%7;
+  const prop={},itm={};O.items.forEach(it=>{itm[it.d]=it;if(it.st==="pose")prop[it.d]=it.k+(it.next?" *":"");});
+  const t=new Date(),tds=ymd(t.getFullYear(),t.getMonth(),t.getDate());const cm=codeMap();const ferY={};const isF=ds=>{const yy=pY(ds).y;return (ferY[yy]||(ferY[yy]=feries(yy)))[ds];};
+  let h="";for(let k=0;k<42;k++){
+    const i=first-off+k,ds=fromIdx(i),p=pY(ds),o=C.byDate[ds],v=S.planning[ds]||"";
+    if(k>=35&&p.m!==m)break;
+    const wish=!!S.souhaits[ds];
+    const def=v?cm[nk(v)]:null;const lk=isLocked(ds);const fer=isF(ds);
+    const green=lk&&def&&(def.cat==="repos"||(CATS[def.cat]&&CATS[def.cat].ctr))&&!((S.mods||{})[ds]);
+    h+=`<button type="button" class="day ${(S.mods||{})[ds]&&S.mods[ds].type==="cede"?"cede":""} ${p.m!==m?"out":""} ${dowOf(ds)===0?"sun":""} ${wish?"wish":""} ${ds===tds?"today":""} ${lk?"locked":""} ${green?"green":""} ${fer?"ferie":""}" data-d="${ds}" aria-pressed="${wish}" aria-label="${dl(ds)}${fer?" férié":""}${v?" : "+v:""}${wish?" (souhait)":""}">
+      <span class="dn"><b>${p.d}</b>${fer?"<span class='ferb'><span class='fl'>FÉRIÉ</span><span class='fs'>F</span></span>":""}</span>
+      ${v?(modEmoji(ds)?modEmoji(ds)+" ":"")+chip(v):""}
+      ${modTxt(ds)?`<span class="modt">${esc(modTxt(ds))}</span>`:""}
+      ${def&&o&&o.work&&o.hours?`<span class="hrs">${def.debut}–${def.fin}</span>`:""}
+      ${fer?`<span class="fer">${esc(fer)}</span>`:""}
+      ${wish?`<span class="prop">${prop[ds]?(prop[ds]==="?"?"non couvert":"→ "+prop[ds]):(itm[ds]&&itm[ds].st==="prob"?"souhait":itm[ds]&&itm[ds].st==="libre"?"déjà libre":"souhait")}</span>`:""}
+    </button>`;
+  }
+  $("#calGrid").innerHTML=h;
+  {const seen=[];for(let d=1;d<=dim(y,m);d++){const v=effCode(ymd(y,m,d));if(v&&!seen.includes(nk(v)))seen.push(nk(v));}
+   $("#calCodes").innerHTML=seen.length?`<span>Codes du mois :</span>`+seen.sort().map(c=>{const df=cm[c];return `<span>${chip(c)} ${esc(df?(df.lib||CATS[df.cat].l):"code inconnu")}</span>`;}).join(""):"";}
+  $("#calGrid").querySelectorAll(".day[data-d]").forEach(b=>b.addEventListener("click",e=>{
+    const d=b.dataset.d;
+    if(isLocked(d)){
+      if(d<todayStr()){toast("Jour passé");return;}
+      const c=effCode(d);if(isWorkDef(defFor(c,codeMap()))){exSel=d;exMonth=d.slice(0,7);showTab("pE");toast("Planning déjà publié : voici les échanges possibles pour cette garde");return;}
+      toast("Planning déjà publié pour ce mois : les congés se demandent avant sa publication. Pour changer une garde, passez par un échange.");return;}
+    if(e.shiftKey&&lastClick){const a=Math.min(idx(lastClick),idx(d)),z=Math.max(idx(lastClick),idx(d));const on=!S.souhaits[d];for(let i=a;i<=z;i++){if(on)S.souhaits[fromIdx(i)]=true;else delete S.souhaits[fromIdx(i)];}}
+    else{if(S.souhaits[d])delete S.souhaits[d];else S.souhaits[d]=true;}
+    lastClick=d;changed();
+  }));
+  renderSide(O);renderDemande(O);
+}
+function isLocked(ds){return ds<todayStr()||filledMonthSet().has(ds.slice(0,7));}
+function renderSide(O){
+  const mode=modeDec();const C=O.C;const C0=O.C0||C;
+  let rttNeg=false;const rows=["CA","RTT","FR","RC","HS","CET"].map(k=>{
+    const c=C0.ctr[k];const unit=c.unit;
+    let wish=0;if(unit==="h"){wish=O.items.filter(i=>i.k===k).reduce((a,i)=>a+i.h,0)+(O.estAlloc[k]||0)*C0.hG;}
+    else{wish=(O.alloc[k]||0)+(O.estAlloc[k]||0);}
+    const rest=c.droit-c.pris-wish;
+    if(!c.droit&&!c.pris&&!wish&&k!=="CA"&&k!=="HS")return "";
+    const f=x=>unit==="h"?fmtHc(x):fmt1(x)+"\u00a0j";
+    if(k==="RTT"&&rest<-1e-6&&!c.droit)rttNeg=true;
+    return `<tr><td>${c.l}</td><td>${f(c.droit)}</td><td>${f(c.pris)}</td><td class="wishcol">${wish?f(wish):"–"}</td><td class="rest ${rest<-1e-6?"neg":""}">${f(rest)}</td></tr>`;
+  }).join("");
+  const rttTip=rttNeg?`<div class="tip warn" style="margin-top:6px">${S.profil.base?`Avec une base de ${fmtH(+S.profil.base)} par semaine, vous n'avez pas de RTT : vérifiez votre base horaire dans « Réglages › Mon contrat » ou le code utilisé sur le planning.`:"Choisissez votre base horaire dans « Réglages › Mon contrat » pour calculer vos RTT."}</div>`:"";
+  const both=!S.profil.decompte&&!O.avant?(()=>{const H=compute("heures");return `<div class="tip warn">Décompte non renseigné. En heures, il vous resterait ${fmtH(H.ctr.CA.droit-H.ctr.CA.pris)} de CA, soit ≈ ${fmt1((H.ctr.CA.droit-H.ctr.CA.pris)/H.hG)} gardes, au lieu de ${fmt1(C0.ctr.CA.droit-C0.ctr.CA.pris)} gardes en jours.</div>`;})():"";
+  const props=O.items.length?O.items.map(it=>`<div><span>${dl(it.d)}</span><span>${it.st==="pose"?(it.code?chip(it.code):"<span class='muted'>à poser</span>")+" → <b>"+(it.k==="?"?"non couvert":(KLAB[it.k]||it.k))+"</b>"+(it.next?" <span class='muted'>(autre année)</span>":""):it.st==="gratuit"?"<span class='muted'>gratuit ("+esc(it.code)+")</span>":it.st==="libre"?"<span class='muted'>déjà libre ("+esc(it.code)+")</span>":it.st==="hors"?"<span class='muted'>hors de l'année affichée</span>":it.st==="prob"?"<span class='muted'>probablement en repos</span>":"<span class='muted'>planning inconnu</span>"}</span></div>`).join(""):"";
+  const est=O.est?`<div class="tip warn">${plur(O.items.filter(i=>i.st==="inconnu").length,"jour")} sans planning publié : environ ${plur(O.est,"garde")} à prévoir (${Object.entries(O.estAlloc).map(([k,n])=>n+" "+(KLAB[k]||k)).join(", ")||"compteurs insuffisants"}).</div>`:"";
+  $("#side").innerHTML=`
+    <div class="card"><h3>Mes compteurs</h3>
+      <div class="estim" style="margin:2px 0 4px">En heures et minutes : 10h55 = 10 h 55 min.</div>
+      <div class="scroll"><table class="ctr"><thead><tr><th></th><th>Droits</th><th>Pris</th><th>Souhaits</th><th>Reste</th></tr></thead><tbody>${rows}</tbody></table></div>
+      ${both}${rttTip}
+      <p class="estim" style="margin:6px 0 0">Année du ${dl(fromIdx(C0.per.s0))} ${pY(fromIdx(C0.per.s0)).y} au ${dl(fromIdx(C0.per.e))} ${pY(fromIdx(C0.per.e)).y} · estimation, à confirmer auprès du cadre ou de la DRH.</p>
+      ${(S.dettes||[]).filter(x=>!x.rendue).map(x=>`<div class="tip warn" style="margin-top:6px">${x.sens==="je_dois"?`Vous devez une garde à <b>${esc(disp(x.nom))}</b>`:`<b>${esc(disp(x.nom))}</b> vous doit une garde`}</div>`).join("")}
+    </div>
+    <div class="card"><h3>Heures</h3>
+      <div class="kpi"><span>Obligation annuelle</span><b>${fmtH(C0.oat)}</b></div>
+      <div class="kpi"><span>Régime</span><b>${regLabel(C0.regime)}${C0.pNight>0&&C0.regime!=="nuit"?" · "+Math.round(100*C0.pNight)+" % de nuit":""}</b></div>
+      ${C0.pNight>0&&C0.nFill<6?`<div class="estim">Part de nuit estimée sur vos ${plur(C0.ref.months,"mois","mois")} de planning.</div>`:""}
+      <div class="kpi"><span>Faites (mois chargés)</span><b>${fmtH(C0.workH)}</b></div>
+      <div class="kpi"><span>Dues sur la même période</span><b>${fmtH(C0.due)}</b></div>
+      <div class="kpi"><span>Solde d'heures</span><b style="color:${C0.solde>=0?"var(--ok)":"var(--bad)"}">${C0.solde>=0?"+":""}${fmtH(C0.solde)}</b></div>
+      <div class="kpi"><span>Dimanches / fériés travaillés</span><b>${C0.dimFer}${C0.estim?" (≈ "+C0.dimFerProj+"/an)":""}</b></div>
+    </div>
+    <div class="card" id="propCard"><h3>Proposition pour mes souhaits</h3>
+      ${O.items.length?`<div class="proplist" style="margin-top:8px">${props}</div>${est}<div class="stack" style="gap:6px;margin-top:10px">${O.notes.map(n=>`<div class="tip ${n.t==="ok"?"":n.t==="info"?"warn":n.t}">${esc(n.m)}</div>`).join("")}</div>
+      <div class="row" style="margin-top:10px"><button class="btn primary" type="button" id="goDemande">Préparer la demande</button></div>`:`<p class="muted small" style="margin:6px 0 0">Aucun jour sélectionné. Touchez des dates dans le calendrier.</p>`}
+      <p class="muted small" style="margin:10px 0 0">Ordre utilisé : fériés à récupérer, RTT${S.profil.hsMode==="recup"?", heures sup":""}, CA, puis CET. Les CA passent en premier du 1er novembre au 30 avril quand ils font gagner des jours hors saison.</p>
+    </div>`;
+  const g=$("#goDemande");if(g)g.addEventListener("click",()=>{const dc=$("#demandeCard");if(dc)dc.scrollIntoView({behavior:"smooth",block:"start"});});
+  const wb=$("#wishBar");
+  if(O.items.length){const tot=Object.entries(O.alloc).map(([k,n])=>`${n} ${KLAB[k]||k}`).join(", ")||"rien à poser";
+    wb.innerHTML=`<span><b>${O.items.length} jour${O.items.length>1?"s":""}</b> · ${esc(tot)}</span><button class="btn" type="button" id="wbGo">Voir</button>`;wb.hidden=false;
+    $("#wbGo").addEventListener("click",()=>{const pc=$("#propCard");if(pc)pc.scrollIntoView({behavior:"smooth",block:"start"});});}
+  else wb.hidden=true;
+
+}
+function calGo(dm){calMonth.m+=dm;if(calMonth.m<0){calMonth.m=11;calMonth.y--;}if(calMonth.m>11){calMonth.m=0;calMonth.y++;}
+  const per=period(),i=Date.UTC(calMonth.y,calMonth.m,1)/864e5;
+  // changer de mois ne modifie jamais le contrat : seule l'année affichée suit
+  if(i<per.s0||i>per.e){const cmo=calMonth;setViewY(yearOfMonth(cmo.y,cmo.m));calMonth=cmo;renderCal();}else renderCal();}
+$("#calPrev").addEventListener("click",()=>calGo(-1));
+$("#calNext").addEventListener("click",()=>calGo(1));
+$("#btnClearWish").addEventListener("click",()=>{S.souhaits={};changed();});
+
+/* ---- onglet 4 ---- */
+const JLONG=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+function dLong(d,withMonth=true,withYear=true){const p=pY(d);return `${JLONG[dowOf(d)]} ${p.d===1?"1er":p.d}${withMonth?" "+MOIS[p.m]:""}${withYear?" "+p.y:""}`;}
+function rangeLong(a,b){if(a===b)return `le ${dLong(a)}`;const pa=pY(a),pb=pY(b);
+  if(pa.y===pb.y&&pa.m===pb.m)return `du ${dLong(a,false,false)} au ${dLong(b)}`;if(pa.y===pb.y)return `du ${dLong(a,true,false)} au ${dLong(b)}`;return `du ${dLong(a)} au ${dLong(b)}`;}
+function renderDemande(O){
+  const P=S.profil,g=P.genre||"n";const absent=g==="f"?"absente":g==="m"?"absent":"absent(e)";
+  const lab={CA:"congés annuels",RTT:"RTT",FR:"jours fériés à récupérer",RC:"repos compensateurs",HS:"récupération d'heures supplémentaires",CET:"jours de CET","CA*":"congés annuels de l'année suivante"};
+  const mois=[...new Set(O.periods.map(p=>`${MOIS[pY(p.a).m]} ${pY(p.a).y}`))];
+  const ta0=$("#demande");$("#btnCopy").disabled=!O.items.length;
+  if(!O.items.length){if(document.activeElement!==ta0)ta0.value="";return;}
+  let txt=`Objet : demande de congés${mois.length?" – "+mois.join(", "):""}\n\n${P.cadre?"Bonjour "+P.cadre+",":"Bonjour,"}\n\n`;
+  {
+    txt+=`Je souhaiterais être ${absent} ${O.periods.length>1?"sur les périodes suivantes":"sur la période suivante"} :\n\n`;
+    const used=new Set();
+    O.periods.forEach(p=>{const ks=[...new Set(p.items.filter(i=>i.st==="pose"&&i.k&&i.k!=="?").map(i=>i.next?i.k+"*":i.k))];ks.forEach(k=>used.add(k));
+      txt+=`- ${rangeLong(p.a,p.b)}${ks.length?` (${ks.map(k=>lab[k]).join(" et ")})`:""} ;\n`;});
+    txt=txt.replace(/ ;\n$/,".\n");
+    txt+=`\nJe vous laisse me confirmer le nombre de jours décomptés selon les gardes prévues sur ${O.periods.length>1?"ces périodes":"cette période"}.`;
+    if(O.uncovered)txt+=` Mes compteurs ne couvrent peut-être pas toute la durée : je reste disponible pour en parler.`;
+    txt+=` Je peux bien sûr adapter ces dates si les besoins du service l'exigent.\n`;
+  }
+  txt+=`\nJe vous remercie par avance de votre retour.\n\nBien cordialement,\n${P.nom||""}`;
+  const ta=$("#demande");if(document.activeElement!==ta)ta.value=txt;
+}
+$("#btnCopy").addEventListener("click",()=>{const ta=$("#demande");const done=()=>toast("Texte copié");
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ta.value).then(done).catch(()=>{ta.select();toast("Sélectionné : faites Copier");});}else{ta.select();toast("Sélectionné : faites Copier");}});
+
+function renderAudit(C){
+  const A=audit(C);const L={bad:"À CORRIGER",warn:"À VÉRIFIER",ok:"CONFORME",info:"INFO"};
+  const ord={bad:0,warn:1,info:2,ok:3};A.sort((a,b)=>ord[a.sev]-ord[b.sev]);
+  $("#auditRange").textContent=`Année affichée : du ${dl(fromIdx(C.per.s0))} ${pY(fromIdx(C.per.s0)).y} au ${dl(fromIdx(C.per.e))} ${pY(fromIdx(C.per.e)).y} (changez d'année dans l'onglet Planning).`;
+  $("#alerts").innerHTML=A.map(a=>`<div class="alert ${a.sev}"><span class="sev">${L[a.sev]}</span><span class="t">${esc(a.t)}</span>${a.d?`<span class="d">${esc(a.d)}</span>`:""}${a.src?`<span class="src">${esc(a.src)}</span>`:""}</div>`).join("")+`<p class="muted small" style="margin:4px 0 0">Version ${RULES.version} · règles vérifiées le ${RULES.verif}. Estimations à confirmer auprès du cadre ou de la DRH : en cas d'écart, c'est le compteur officiel de l'hôpital qui fait foi.</p>`;
+}
+// heures travaillées le dimanche ou un jour férié, heure par heure (une nuit du samedi compte pour la partie après minuit)
+function dimFerHours(C){let t=0;const F={};const isDF=d=>{const ds=fromIdx(d),y=pY(ds).y;const f=F[y]||(F[y]=feries(y));return dowOf(ds)===0||!!f[ds];};
+  C.intervals.forEach(x=>{const d0=Math.floor(x.s/1440);for(let d=d0;d<=d0+1;d++){if(!isDF(d))continue;const ov=Math.min(x.e,(d+1)*1440)-Math.max(x.s,d*1440);if(ov>0)t+=ov*(x.h*60/(x.e-x.s));}});return t/60;}
+function renderStats(C,CY){
+  const nG=C.nbJour+C.nbNuit, nAll=nG+C.nbAct;
+  const pn=C.workH?Math.round(100*C.nightH/C.workH):0, pj=C.workH?100-pn:0;
+  let bar="";for(let i=0;i<100;i++)bar+=`<i class="${!C.workH?"":i<pj?"j":"n"}"></i>`;
+  const wd=[0,0,0,0,0,0,0];C.days.forEach(o=>{if(o.work)wd[(o.wd+6)%7]++;});const mx=Math.max(1,...wd);
+  const wdh=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((n,i)=>`<div class="wk"><span>${n}</span><span class="b" style="width:${100*wd[i]/mx}%"></span><span class="v">${pct(wd[i],nAll)} %</span></div>`).join("");
+  const ferAll=C.days.filter(o=>o.isFer), ferF=ferAll.filter(o=>o.filled), ferW=ferF.filter(o=>o.work);
+  const runs=workRuns(C);const iso=runs.filter(r=>r.n===1).length;
+  const reg=nAll>1?Math.round(100*(1-(runs.length-1)/(nAll-1))):0;
+  // repos isolés : 1 seul jour libre entre deux blocs
+  let isoRest=0;for(let k=1;k<runs.length;k++){const gap=idx(runs[k].start)-(idx(runs[k-1].start)+runs[k-1].n);if(gap===1)isoRest++;}
+  const seg=C.days.filter(o=>o.filled).slice(0,120).map(o=>`<i class="${o.work?"w":""}" title="${o.d}"></i>`).join("");
+  const dfH=dimFerHours(C);const nH=nightHours2106(C);
+  const w36=weekly36(C);const sundays=C.days.filter(o=>o.work&&o.wd===0).length;
+  $("#stats").innerHTML=`
+   <div class="card stat"><h3>Heures de jour / de nuit</h3><div class="big">${pj} % <span class="muted" style="font-size:1rem">jour</span> · ${pn} % <span class="muted" style="font-size:1rem">nuit</span></div><div class="bar100" aria-hidden="true">${bar}</div><div class="small muted">${plur(C.nbJour,"garde")} de jour · ${plur(C.nbNuit,"nuit")} · ${plur(C.nbAct,"journée")} (part des heures travaillées).</div></div>
+   <div class="card stat"><h3>Jours de la semaine travaillés</h3>${wdh}</div>
+   <div class="card stat"><h3>Solde d'heures (année affichée)</h3><div class="big" style="color:${CY.solde>=0?"var(--ok)":"var(--bad)"}">${CY.solde>=0?"+":""}${fmtH(CY.solde)}</div><div class="small muted">Même chiffre que dans l'onglet Planning : faites − dues sur ${plur(CY.nFill,"mois","mois")} chargé${CY.nFill>1?"s":""}. ${CY.soldeProj==null?`Projection sur l'année à partir de 6 mois chargés (${CY.nFill} pour l'instant).`:`Projection fin d'année : ${CY.soldeProj>=0?"+":""}${fmtH(CY.soldeProj)}.`} Estimation, à confirmer auprès du cadre.</div></div>
+   <div class="card stat"><h3>Jours fériés</h3><div class="big">${ferW.length} / ${ferF.length}</div><div class="small muted">fériés travaillés sur les mois chargés (${pct(ferW.length,ferF.length)} %) · ${plur(ferAll.length,"férié")} dans la période · ${plur(sundays,"dimanche")} travaillé${sundays>1?"s":""}</div></div>
+   <div class="card stat"><h3>Regroupement des gardes</h3><div class="big">${reg} %</div><div class="small muted">Plus le chiffre est haut, plus vos gardes sont groupées (moins de journées isolées). ${plur(runs.length,"bloc")} de travail · ${plur(iso,"garde isolée","gardes isolées")} · ${plur(isoRest,"repos d'un seul jour","repos d'un seul jour")}.</div><div class="seg" aria-hidden="true">${seg}</div><div class="estim">Chaque trait = un jour (foncé = travaillé), sur les 120 premiers jours.</div></div>
+   <div class="card stat"><h3>Primes de dimanche et de férié</h3><div class="big">≈ ${Math.round(dfH/8*RULES.primes.dimFer8h)} € <span class="muted" style="font-size:.9rem">brut</span></div>
+     <div class="small muted">Ce sont les « indemnités de sujétion » : des primes prévues par la réglementation pour le travail le dimanche, les jours fériés et la nuit. Elles sont normalement versées avec le salaire, souvent le mois suivant.</div>
+     <div class="small" style="margin-top:6px">${fmtH(dfH)} travaillées les dimanches et fériés, heure par heure (60 € brut pour 8 h). En plus : ${fmtH(nH)} de nuit entre 21 h et 6 h, majorées de 25 % de votre taux horaire (montant non calculé ici).</div>
+     <div class="small muted" style="margin-top:6px">Ce montant est une estimation pour vérifier l'ordre de grandeur sur votre fiche de paie, pas une somme due. En cas d'écart, demandez le détail au service paie.</div></div>
+   <div class="card stat"><h3>Repos de 36 h manqués</h3><div class="big" style="color:${w36.bad.length?"var(--bad)":"var(--ok)"}">${w36.bad.length}</div><div class="small muted">${w36.bad.length>1?"semaines":"semaine"} sans 36 h de repos d'affilée, sur ${plur(w36.n,"semaine complète","semaines complètes")} de ces 12 mois (l'audit ci-dessous ne regarde que l'année affichée).</div></div>`;
+}
+
+/* ---- ICS ---- */
+function icsEsc(s){return String(s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");}
+function rangeDates(){const range=$("#icsRange").value;let dates=[];
+  if(range==="month"){const mm=navM||{y:new Date().getFullYear(),m:new Date().getMonth()};for(let d=1;d<=dim(mm.y,mm.m);d++)dates.push(ymd(mm.y,mm.m,d));}
+  else if(range==="next"){const t=todayStr();dates=Object.keys(S.planning).filter(d=>d>=t).sort();}
+  else{const per=period();for(let i=per.s0;i<=per.e;i++)dates.push(fromIdx(i));}return dates;}
+function eventsFor(dates,force){
+  const cm=codeMap(),abs=$("#icsAbs").checked,out=[];const t=(i,min)=>{const d=fromIdx(i+Math.floor(min/1440)).replace(/-/g,""),mm=min%1440;return `${d}T${pad(Math.floor(mm/60))}${pad(mm%60)}00`;};
+  dates.forEach(ds=>{const raw=(S.planning[ds]||"").trim();if(!raw)return;const i=idx(ds),md=(S.mods||{})[ds],def=cm[nk(raw)];
+    const loc=def&&def.lib?def.lib:"";let title=loc?`${raw} · ${loc}`:raw;if(md){const mt=modTxt(ds);title=`${modEmoji(ds)} ${title}${mt?" · "+mt:""}`;}
+    const work=def&&CATS[def.cat]&&CATS[def.cat].work,ceded=!!(md&&md.type==="cede");
+    if(work&&tmin(def.debut)!=null){const a=tmin(def.debut);let b=tmin(def.fin);if(b<=a)b+=1440;out.push({ds,title,loc,timed:true,start:t(i,a),end:t(i,b),ceded});}
+    else if(abs||force)out.push({ds,title,loc,timed:false,start:ds.replace(/-/g,""),end:fromIdx(i+1).replace(/-/g,""),ceded});});
+  return out;
+}
+function buildIcs(onlyDates){
+  const alarm=$("#icsAlarm").checked;const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,""),seq=Math.floor(Date.now()/1000)%2000000000;
+  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Planning Hopital//FR","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:Planning"];
+  const evs=eventsFor(onlyDates||rangeDates(),!!onlyDates);
+  evs.forEach(ev=>{L.push("BEGIN:VEVENT",`UID:${ev.ds}@planning-sf`,`DTSTAMP:${stamp}`,`SEQUENCE:${seq}`);if(ev.loc)L.push(`LOCATION:${icsEsc(ev.loc)}`);
+    if(ev.timed){L.push(`DTSTART:${ev.start}`,`DTEND:${ev.end}`,`SUMMARY:${icsEsc(ev.title)}`,ev.ceded?"TRANSP:TRANSPARENT":"TRANSP:OPAQUE");
+      if(alarm&&!ev.ceded)L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Garde dans 1 h","TRIGGER:-PT60M","END:VALARM");}
+    else L.push(`DTSTART;VALUE=DATE:${ev.start}`,`DTEND;VALUE=DATE:${ev.end}`,`SUMMARY:${icsEsc(ev.title)}`,"TRANSP:TRANSPARENT");
+    L.push("END:VEVENT");});
+  L.push("END:VCALENDAR");return {txt:L.join("\r\n"),n:evs.length};
+}
+function gcalUrl(ev){const q=new URLSearchParams({action:"TEMPLATE",text:ev.title,dates:`${ev.start}/${ev.end}`,details:"Ajouté depuis Planning Hôpital",location:ev.loc||"",ctz:"Europe/Paris"});return "https://calendar.google.com/calendar/render?"+q.toString();}
+function gcalLinks(evs){return evs.map(ev=>`<a class="btn gcal" href="${esc(gcalUrl(ev))}" target="_blank" rel="noopener">＋ ${esc(JOURS[dowOf(ev.ds)]+" "+pY(ev.ds).d+" "+MC[pY(ev.ds).m])} · ${esc(ev.title)}</a>`).join("");}
+// Apple : sur iPhone/iPad, ouverture directe de la fenêtre « Tout ajouter » ; sur Mac et ailleurs, fichier à ouvrir
+const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+function openOnIphone(txt){
+  if(window.self===window.top&&isIOS()){window.location.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(txt);return;}
+  offerFile("planning-hopital.ics",txt,"text/calendar").then(ok=>{if(ok)toast("Fichier téléchargé : ouvrez-le, l'agenda propose d'ajouter les gardes");});
+}
+async function offerFile(filename,data,mime){
+  try{if(window.claude&&window.claude.use){const dl=await window.claude.use("downloads");if(dl){await dl.save({filename,data});return true;}}}catch(e){if(e&&e.code&&e.code!=="unavailable"){toast("Téléchargement annulé");return false;}}
+  try{const url=URL.createObjectURL(new Blob([data],{type:mime}));const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);return true;}catch(e){toast("Téléchargement impossible ici");return false;}
+}
+$("#btnSave2").addEventListener("click",()=>{exportJson();renderActive();});
+$("#btnIcs").addEventListener("click",()=>{const {txt,n}=buildIcs();if(!n){toast("Rien à exporter sur cette période");return;}offerFile("planning-hopital.ics",txt,"text/calendar");});
+$("#btnIos").addEventListener("click",()=>{const {txt,n}=buildIcs();if(!n){toast("Aucune garde sur cette période");return;}openOnIphone(txt);});
+$("#btnAndroid").addEventListener("click",()=>{const box=$("#gcalList");if(box.innerHTML){box.innerHTML="";return;}const evs=eventsFor(rangeDates());
+  box.innerHTML=evs.length?`<p class="small" style="margin:0">Touchez chaque garde pour l'ouvrir dans Google Agenda (${evs.length}) :</p>`+gcalLinks(evs):`<p class="muted small">Aucune garde sur cette période.</p>`;});
+
+/* ---- JSON ---- */
+$("#btnExport").addEventListener("click",()=>{exportJson();renderActive();});
+$("#fileJson").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;e.target.value="";
+  try{const o=JSON.parse(await f.text());if(!o||!o.profil||!o.planning)throw 0;S=migrate(o);delete S.app;delete S.appVersion;S.exemple=false;S.lastExport=Date.now();S.dirty=0;teamPurge();setViewY(null);changed(true);S.lastExport=Date.now();save();renderActive();toast("Données importées");}catch(err){toast("Fichier non reconnu : choisissez un export de cet outil");}});
+let resetArm=false;
+$("#btnReset").addEventListener("click",e=>{const b=e.currentTarget;
+  if(!resetArm){resetArm=true;b.textContent="Confirmer l'effacement";setTimeout(()=>{resetArm=false;b.textContent="Tout effacer";},4000);return;}
+  resetArm=false;b.textContent="Tout effacer";S=defaultState();setViewY(null);changed(true);toast("Tout est effacé");});
+
+$("#btnAddCode").addEventListener("click",()=>{S.codes.unshift(mk("","","jour","08:00","20:00"));changed();setTimeout(()=>{const i=document.querySelector("#codesTable tbody input");if(i)i.focus();},30);});
+$("#btnDetect").addEventListener("click",()=>{const cm=codeMap();const add=[];Object.values(S.planning).forEach(v=>{const u=nk(v);if(u&&!cm[u]&&!add.includes(u))add.push(u);});
+  add.forEach(u=>S.codes.unshift(/^N/.test(u)?mk(u,"","nuit","20:00","08:00"):/^G/.test(u)?mk(u,"","jour","08:00","20:00"):/^J/.test(u)?mk(u,"","activite","07:30","16:00"):mk(u,"","activite")));
+  changed();toast(add.length?`${add.length>1?add.length+" nouveaux codes":"1 nouveau code"} : ${add.join(", ")}`:"Tous les codes du planning sont déjà connus");});
+
+/* ---- onglets ---- */
+function showTab(id){document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.tab===id)));document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("on",p.id===id));try{localStorage.setItem(KEY+".tab",id);}catch(e){}renderActive();}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>showTab(t.dataset.tab)));
+function active(){const p=document.querySelector(".panel.on");return p?p.id:"p2";}
+function renderActive(){
+  const a=active();
+  if(a==="p1")renderCodes();
+  else if(a==="p2")renderYear();
+  else if(a==="p3")renderCal();
+  else if(a==="pE")renderEx();
+  else if(a==="p4"){const O=optimize(modeDec());const CY=O.C0||O.C;renderAudit(CY);const RR=rollingRange();
+    const nm=RR?[...filledMonthSet()].filter(k=>{const i=Date.UTC(+k.slice(0,4),+k.slice(5,7)-1,1)/864e5,j=Date.UTC(+k.slice(0,4),+k.slice(5,7),0)/864e5;return j>=RR.s0&&i<=RR.e;}).length:0;
+    $("#statsRange").textContent=RR?`${nm>=12?"Sur les 12 derniers mois":"Sur vos "+plur(nm,"mois","mois")+" de planning des 12 derniers mois"}, jusqu'à votre garde la plus lointaine (du ${dl(fromIdx(RR.s0))} ${pY(fromIdx(RR.s0)).y} au ${dl(RR.last)} ${pY(RR.last).y}).${nm<3?" Avec si peu de mois, ces chiffres donnent seulement une tendance.":""}`:"";
+    renderStats(RR?compute(modeDec(),null,RR):CY,CY);}
+}
+function changed(full){if(S.planning&&Object.keys(S.planning).length)S.dirty=Date.now();save();bindAll();renderContrat();renderActive();}
+// démarrage
+teamPurge();bindAll();renderContrat();
+try{const t=localStorage.getItem(KEY+".tab");if(t&&document.getElementById(t))showTab(t);else renderActive();}catch(e){renderActive();}
+
+</script>
+
+</body>
+</html>
