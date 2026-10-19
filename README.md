@@ -2,7 +2,7 @@
 
 Outil web gratuit pour les soignant·e·s qui travaillent en gardes de 12 h dans un hôpital public (fonction publique hospitalière). Il permet de suivre son planning, ses heures, ses congés et ses échanges de gardes depuis son téléphone.
 
-**➡️ Ouvrir l'outil :** `https://VOTRE-PSEUDO.github.io/planning-hopital/`
+**➡️ Ouvrir l'outil :** `https://Ho-Nimb.github.io/planning-hopital/`
 
 ---
 
